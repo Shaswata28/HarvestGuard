@@ -1,8 +1,8 @@
 services:
   - type: web
-    name: aura-backend
+    name: harvestguard-backend
     env: node
-    plan: starter
+    plan: free
     rootDir: .
     numInstances: 1
     buildCommand: npm install && npm run build:api
@@ -16,20 +16,37 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      - key: OPENWEATHER_API_KEY
+        sync: false
+      - key: WEATHER_CACHE_TTL
+        value: "3600"
+      - key: WEATHER_CACHE_EXTENDED_TTL
+        value: "7200"
+      - key: WEATHER_API_DAILY_LIMIT
+        value: "1000"
+      - key: WEATHER_API_WARNING_THRESHOLD
+        value: "800"
       - key: CORS_ORIGIN
         value: "*"
       - key: PING_MESSAGE
         value: pong
 
-  - type: static_site
-    name: aura-frontend
-    plan: starter
+  - type: web
+    name: harvestguard-frontend
+    env: static
     rootDir: .
     buildCommand: npm install && npm run build:client
-    publishPath: dist/spa
+    staticPublishPath: dist/spa
     envVars:
+      - key: NODE_VERSION
+        value: 20
       - key: VITE_API_BASE_URL
         fromService:
-          name: aura-backend
+          name: harvestguard-backend
           type: web
-          property: url
+          property: host
+      # These are not used by frontend but prevent build errors
+      - key: MONGODB_URI
+        value: "placeholder"
+      - key: MONGODB_DB_NAME
+        value: "placeholder"

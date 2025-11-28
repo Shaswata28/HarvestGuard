@@ -384,6 +384,7 @@ export default function Profile() {
                 setNotificationPrefs(updated);
                 notificationService.updatePreferences({ scanResults: checked });
               }}
+              className="h-7 w-14 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
             />
           </div>
 
@@ -404,6 +405,7 @@ export default function Profile() {
                 setNotificationPrefs(updated);
                 notificationService.updatePreferences({ pendingScans: checked });
               }}
+              className="h-7 w-14 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
             />
           </div>
 
@@ -424,6 +426,7 @@ export default function Profile() {
                 setNotificationPrefs(updated);
                 notificationService.updatePreferences({ weatherAdvisories: checked });
               }}
+              className="h-7 w-14 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
             />
           </div>
 
@@ -444,6 +447,7 @@ export default function Profile() {
                 setNotificationPrefs(updated);
                 notificationService.updatePreferences({ harvestReminders: checked });
               }}
+              className="h-7 w-14 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
             />
           </div>
         </div>

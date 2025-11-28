@@ -7,12 +7,16 @@ let db: Db | null = null;
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME;
 
-if (!MONGODB_URI) {
-  throw new Error('MONGODB_URI environment variable is not defined');
-}
+// Only validate environment variables when actually connecting
+// This allows the module to be imported during build time without failing
+function validateEnvVars() {
+  if (!MONGODB_URI) {
+    throw new Error('MONGODB_URI environment variable is not defined');
+  }
 
-if (!MONGODB_DB_NAME) {
-  throw new Error('MONGODB_DB_NAME environment variable is not defined');
+  if (!MONGODB_DB_NAME) {
+    throw new Error('MONGODB_DB_NAME environment variable is not defined');
+  }
 }
 
 /**
@@ -25,6 +29,9 @@ export async function connectToDatabase(
   maxRetries: number = 3,
   retryDelayMs: number = 2000
 ): Promise<Db> {
+  // Validate environment variables before attempting connection
+  validateEnvVars();
+  
   if (db) {
     return db;
   }
