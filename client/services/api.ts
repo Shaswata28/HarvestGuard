@@ -59,10 +59,14 @@ async function handleApiResponse<T>(response: Response): Promise<T> {
  * API Service Layer
  * Provides type-safe methods for all backend API calls
  */
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+
+const buildApiUrl = (path: string) => `${apiBaseUrl}${path}`;
+
 export const apiService = {
   // Dashboard
   async fetchDashboardData(farmerId: string): Promise<FarmerDashboardResponse> {
-    const response = await fetch(`/api/dashboard/farmer/${farmerId}`);
+    const response = await fetch(buildApiUrl(`/api/dashboard/farmer/${farmerId}`));
     return handleApiResponse<FarmerDashboardResponse>(response);
   },
 
@@ -73,13 +77,13 @@ export const apiService = {
     if (params?.cropType) queryParams.append('cropType', params.cropType);
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     
-    const response = await fetch(`/api/crop-batches?${queryParams}`);
+    const response = await fetch(buildApiUrl(`/api/crop-batches?${queryParams}`));
     const data = await handleApiResponse<{ batches: CropBatchResponse[] }>(response);
     return data.batches;
   },
 
   async createCropBatch(data: CreateCropBatchRequest): Promise<CropBatchResponse> {
-    const response = await fetch('/api/crop-batches', {
+    const response = await fetch(buildApiUrl('/api/crop-batches'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -88,7 +92,7 @@ export const apiService = {
   },
 
   async updateCropBatch(id: string, data: UpdateCropBatchRequest): Promise<CropBatchResponse> {
-    const response = await fetch(`/api/crop-batches/${id}`, {
+    const response = await fetch(buildApiUrl(`/api/crop-batches/${id}`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -110,7 +114,7 @@ export const apiService = {
     storageDivision?: string;
     storageDistrict?: string;
   }): Promise<CropBatchResponse> {
-    const response = await fetch(`/api/crop-batches/${id}/stage`, {
+    const response = await fetch(buildApiUrl(`/api/crop-batches/${id}/stage`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -123,13 +127,13 @@ export const apiService = {
     const queryParams = new URLSearchParams({ farmerId });
     if (limit) queryParams.append('limit', limit.toString());
     
-    const response = await fetch(`/api/health-scans?${queryParams}`);
+    const response = await fetch(buildApiUrl(`/api/health-scans?${queryParams}`));
     const data = await handleApiResponse<{ scans: HealthScanResponse[] }>(response);
     return data.scans;
   },
 
   async createHealthScan(data: CreateHealthScanRequest): Promise<HealthScanResponse> {
-    const response = await fetch('/api/health-scans', {
+    const response = await fetch(buildApiUrl('/api/health-scans'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -141,7 +145,7 @@ export const apiService = {
     id: string,
     data: UpdateHealthScanOutcomeRequest
   ): Promise<HealthScanResponse> {
-    const response = await fetch(`/api/health-scans/${id}/outcome`, {
+    const response = await fetch(buildApiUrl(`/api/health-scans/${id}/outcome`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -151,12 +155,12 @@ export const apiService = {
 
   // Weather
   async fetchWeather(farmerId: string): Promise<WeatherResponse> {
-    const response = await fetch(`/api/weather/current?farmerId=${farmerId}`);
+    const response = await fetch(buildApiUrl(`/api/weather/current?farmerId=${farmerId}`));
     return handleApiResponse<WeatherResponse>(response);
   },
 
   async fetchForecast(farmerId: string): Promise<ForecastResponse> {
-    const response = await fetch(`/api/weather/forecast?farmerId=${farmerId}`);
+    const response = await fetch(buildApiUrl(`/api/weather/forecast?farmerId=${farmerId}`));
     return handleApiResponse<ForecastResponse>(response);
   },
 
@@ -167,13 +171,13 @@ export const apiService = {
     if (params?.source) queryParams.append('source', params.source);
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     
-    const response = await fetch(`/api/advisories?${queryParams}`);
+    const response = await fetch(buildApiUrl(`/api/advisories?${queryParams}`));
     const data = await handleApiResponse<{ advisories: AdvisoryResponse[] }>(response);
     return data.advisories;
   },
 
   async markAdvisoryRead(id: string, farmerId: string): Promise<void> {
-    const response = await fetch(`/api/advisories/${id}/read`, {
+    const response = await fetch(buildApiUrl(`/api/advisories/${id}/read`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ farmerId }),
