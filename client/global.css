@@ -1,0 +1,170 @@
+/** @import must precede all other statements */
+@import url("https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&family=Inter:wght@400;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /**
+   * Tailwind CSS theme for HarvestGuard
+   * Color Palette:
+   * - Primary: #166534 (Green - Safe/Growth)
+   * - Warning: #F59E0B (Amber - Risk)
+   * - Critical: #DC2626 (Red - Loss)
+   * tailwind.config.ts expects HSL values.
+  */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+
+    --primary: 131 43% 24%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 131 43% 34%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 91%;
+    --muted-foreground: 0 0% 48%;
+
+    --accent: 38 92% 50%;
+    --accent-foreground: 0 0% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --critical: 0 84% 60%;
+
+    --border: 0 0% 91%;
+    --input: 0 0% 96%;
+    --ring: 131 43% 24%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 0 0% 20%;
+
+    --sidebar-primary: 131 43% 24%;
+
+    --sidebar-primary-foreground: 0 0% 100%;
+
+    --sidebar-accent: 38 92% 50%;
+
+    --sidebar-accent-foreground: 0 0% 15%;
+
+    --sidebar-border: 0 0% 91%;
+
+    --sidebar-ring: 131 43% 24%;
+  }
+
+  .dark {
+    --background: 0 0% 10%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 15%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 15%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 131 43% 34%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 131 43% 44%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 30%;
+    --muted-foreground: 0 0% 70%;
+
+    --accent: 38 92% 50%;
+    --accent-foreground: 0 0% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --critical: 0 84% 60%;
+
+    --border: 0 0% 25%;
+    --input: 0 0% 20%;
+    --ring: 131 43% 34%;
+    --sidebar-background: 0 0% 12%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 131 43% 34%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 38 92% 50%;
+    --sidebar-accent-foreground: 0 0% 15%;
+    --sidebar-border: 0 0% 25%;
+    --sidebar-ring: 131 43% 34%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-size: 18px;
+    font-family: "Hind Siliguri", "Inter", sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Hind Siliguri", "Inter", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    font-family: "Hind Siliguri", "Inter", sans-serif;
+  }
+
+  :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  pre,
+  code {
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  /* Large touch targets for buttons - 56px minimum height */
+  button, [role="button"] {
+    min-height: 3.5rem; /* 56px */
+  }
+
+  /* High contrast text */
+  button, .btn {
+    color: #1f2937;
+    background-color: #ffffff;
+  }
+}
+
+@layer components {
+  /* Large button variant for HarvestGuard - 56px minimum height */
+  .btn-lg {
+    @apply min-h-14 px-6 py-3 text-lg font-semibold;
+  }
+
+  /* Utility for pulsing animation */
+  .animate-pulse-slow {
+    animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Container for mobile-first design, max-width-md on desktop */
+  .container-mobile {
+    @apply w-full max-w-md mx-auto px-4;
+  }
+}

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="bn">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+
+    <!-- Basic Info -->
+    <title>HarvestGuard - ধান বাঁচাই, দেশ বাঁচাই</title>
+    <meta name="description" content="খাদ্য শস্যের ক্ষতি রোধে প্রযুক্তির সহায়তা। Technology to reduce food loss in Bangladesh." />
+    <meta name="keywords" content="agriculture, farming, bangladesh, crop loss, food security, হারভেস্টগার্ড" />
+    <meta name="author" content="HarvestGuard Team" />
+
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#166534" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="HarvestGuard" />
+
+    <!-- App Icons -->
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+
+    <!-- Splash Screens for iOS -->
+    <link rel="apple-touch-startup-image" href="/splash-1668x2224.png" media="(device-width: 834px) and (device-height: 1194px)" />
+    <link rel="apple-touch-startup-image" href="/splash-1536x2048.png" media="(device-width: 768px) and (device-height: 1024px)" />
+    <link rel="apple-touch-startup-image" href="/splash-828x1792.png" media="(device-width: 414px) and (device-height: 896px)" />
+    <link rel="apple-touch-startup-image" href="/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px)" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="HarvestGuard - ধান বাঁচাই, দেশ বাঁচাই" />
+    <meta property="og:description" content="খাদ্য শস্যের ক্ষতি রোধে প্রযুক্তির সহায়তা" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://harvestguard.app" />
+    <meta property="og:image" content="/og-image.png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="HarvestGuard - ধান বাঁচাই, দেশ বাঁচাই" />
+    <meta name="twitter:description" content="খাদ্য শস্যের ক্ষ���ি রোধে প্রযুক্তির সহায়তা" />
+    <meta name="twitter:image" content="/og-image.png" />
+
+    <!-- Prevent Zoom on Input -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {
+            // Service Worker registration failed, but app will still work
+          });
+        });
+      }
+      // Disable pinch zoom
+      document.addEventListener('touchmove', function(event) {
+        if (event.touches.length > 1) {
+          event.preventDefault();
+        }
+      }, { passive: false });
+    </script>
+  </head>
+
+  <body>
+    <div id="root"></div>
+
+    <script type="module" src="/client/App.tsx"></script>
+  </body>
+</html>

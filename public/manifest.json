@@ -1,0 +1,89 @@
+{
+  "name": "HarvestGuard - ফসলের সুরক্ষা",
+  "short_name": "HarvestGuard",
+  "description": "খাদ্য শস্যের ক্ষতি রোধে প্রযুক্তির সহায়তা। Technology to reduce crop loss and food waste in Bangladesh.",
+  "start_url": "/",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#166534",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-540x720.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshot-1280x720.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "categories": ["agriculture", "productivity"],
+  "shortcuts": [
+    {
+      "name": "ড্যাশবোর্ড",
+      "short_name": "Dashboard",
+      "description": "আপনার ফসল ট্র্যাক করুন",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "আবহাওয়া",
+      "short_name": "Weather",
+      "description": "আবহাওয়া পূর্বাভাস এবং পরামর্শ",
+      "url": "/weather",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false,
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}

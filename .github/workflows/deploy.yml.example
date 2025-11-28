@@ -1,0 +1,63 @@
+# GitHub Actions Workflow for CI/CD
+# Rename this file to deploy.yml to enable
+# This workflow runs tests before deployment
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+    
+    - name: Install dependencies
+      run: pnpm install
+    
+    - name: Run type check
+      run: pnpm typecheck
+    
+    - name: Run tests
+      run: pnpm test
+    
+    - name: Test build
+      run: pnpm build:fullstack
+
+  deploy:
+    name: Deploy to Render
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Trigger Render Deploy
+      run: |
+        curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+    
+    # Note: Add RENDER_DEPLOY_HOOK_URL to your GitHub repository secrets
+    # Get this URL from Render Dashboard -> Settings -> Deploy Hook
+
+# To enable this workflow:
+# 1. Rename this file to .github/workflows/deploy.yml
+# 2. In Render Dashboard, go to your service settings
+# 3. Copy the Deploy Hook URL
+# 4. In GitHub, go to Settings -> Secrets and variables -> Actions
+# 5. Add new secret: RENDER_DEPLOY_HOOK_URL with the URL from Render
