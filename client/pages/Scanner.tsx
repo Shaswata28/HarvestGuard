@@ -40,7 +40,10 @@ export default function Scanner() {
     
     setLoadingBatches(true);
     try {
-      const response = await fetch(`/api/crop-batches?farmerId=${farmerId}`);
+      const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+      const apiUrl = apiBaseUrl ? `${apiBaseUrl}/api/crop-batches?farmerId=${farmerId}` : `/api/crop-batches?farmerId=${farmerId}`;
+      
+      const response = await fetch(apiUrl);
       if (response.ok) {
         const data = await response.json();
         setCropBatches(data.batches || []);
@@ -109,7 +112,10 @@ export default function Scanner() {
       }
 
       console.log("Sending analysis request...");
-      const response = await fetch("/api/scanner/analyze", {
+      const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+      const apiUrl = apiBaseUrl ? `${apiBaseUrl}/api/scanner/analyze` : '/api/scanner/analyze';
+      
+      const response = await fetch(apiUrl, {
         method: "POST",
         body: formData,
       });

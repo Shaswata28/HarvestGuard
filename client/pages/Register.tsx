@@ -85,7 +85,10 @@ export default function Register() {
       const upazilaEnglish = LOCATION_LISTS_BANGLA.upazilaMap[formData.upazila] || formData.upazila;
 
       // Call backend API
-      const response = await fetch('/api/farmers/register', {
+      const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+      const apiUrl = apiBaseUrl ? `${apiBaseUrl}/api/farmers/register` : '/api/farmers/register';
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

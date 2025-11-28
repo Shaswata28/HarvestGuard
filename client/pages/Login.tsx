@@ -67,7 +67,10 @@ export default function Login() {
       // Call backend login API
       // NOTE: For demo, OTP is used as password. In production, implement proper OTP verification
       // or use the actual password from registration
-      const response = await fetch('/api/farmers/login', {
+      const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+      const apiUrl = apiBaseUrl ? `${apiBaseUrl}/api/farmers/login` : '/api/farmers/login';
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

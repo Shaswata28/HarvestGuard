@@ -10,8 +10,8 @@ initializeServer()
       res.json({ status: "ok", timestamp: new Date().toISOString() });
     });
 
-    // 404 handler for non-API routes
-    app.use("*", (req, res) => {
+    // 404 handler for non-API routes (Express 5 compatible)
+    app.use((req, res) => {
       res.status(404).json({ error: "Endpoint not found" });
     });
 

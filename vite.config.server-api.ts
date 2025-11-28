@@ -4,16 +4,11 @@ import path from "path";
 // API-only server build configuration (no frontend serving)
 export default defineConfig({
   build: {
-    lib: {
-      entry: path.resolve(__dirname, "server/api-only.ts"),
-      name: "api-server",
-      fileName: "api-server",
-      formats: ["es"],
-    },
     outDir: "dist/api",
     target: "node22",
     ssr: true,
     rollupOptions: {
+      input: path.resolve(__dirname, "server/api-only.ts"),
       external: [
         // Node.js built-ins
         "fs",
@@ -42,7 +37,7 @@ export default defineConfig({
       ],
       output: {
         format: "es",
-        entryFileNames: "[name].mjs",
+        entryFileNames: "api-server.mjs",
       },
     },
     minify: false,

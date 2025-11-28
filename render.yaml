@@ -5,8 +5,8 @@ services:
     plan: starter
     rootDir: .
     numInstances: 1
-    buildCommand: npm install && npm run build:server
-    startCommand: node dist/server/production.mjs
+    buildCommand: npm install && npm run build:api
+    startCommand: node dist/api/api-server.mjs
     envVars:
       - key: NODE_VERSION
         value: 20
