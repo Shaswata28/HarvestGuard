@@ -1,17 +1,16 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// server/src/services/gemini.service.ts
+import {
+  GoogleGenerativeAI,
+  HarmCategory,
+  HarmBlockThreshold,
+} from '@google/generative-ai';
 
-/**
- * Request structure for Gemini image analysis
- */
 export interface GeminiAnalysisRequest {
-  imageBase64: string;
-  mimeType: string;
+  imageBase64: string; // pure base64 (no data:image/... prefix)
+  mimeType: string;    // e.g., 'image/jpeg'
   language: 'bn' | 'en';
 }
 
-/**
- * Disease detection result from Gemini
- */
 export interface DetectedDisease {
   name: string;
   confidence: number;
@@ -19,9 +18,6 @@ export interface DetectedDisease {
   affectedArea: string;
 }
 
-/**
- * Complete analysis response from Gemini
- */
 export interface GeminiAnalysisResponse {
   diseases: DetectedDisease[];
   overallHealth: 'healthy' | 'minor_issues' | 'major_issues';
@@ -29,13 +25,32 @@ export interface GeminiAnalysisResponse {
   preventiveMeasures: string[];
 }
 
-/**
- * Custom error for Gemini API failures
- */
+export interface PestIdentification {
+  name: string;
+  scientificName: string;
+  confidence: number;
+  riskLevel: 'high' | 'medium' | 'low';
+  affectedArea: string;
+}
+
+export interface GroundingSource {
+  title: string;
+  url: string;
+  snippet?: string;
+}
+
+export interface GeminiPestAnalysisResponse {
+  pests: PestIdentification[];
+  overallRisk: 'high' | 'medium' | 'low';
+  recommendations: string[];
+  preventiveMeasures: string[];
+  groundingSources: GroundingSource[];
+}
+
 export class GeminiAPIError extends Error {
   constructor(
     message: string,
-    public readonly retryable: boolean = false,
+    public readonly retryable = false,
     public readonly originalError?: any
   ) {
     super(message);
@@ -43,195 +58,205 @@ export class GeminiAPIError extends Error {
   }
 }
 
-/**
- * Service for interacting with Google Gemini API for crop image analysis
- */
 export class GeminiService {
   private genAI: GoogleGenerativeAI;
-  private model: any;
+  private defaultModel: any;
 
   constructor(apiKey?: string) {
     const key = apiKey || process.env.GEMINI_API_KEY;
-    
-    console.log('[GeminiService] Initializing with API key:', key ? `${key.substring(0, 10)}...` : 'NOT FOUND');
-    console.log('[GeminiService] Environment check:', {
-      hasProcessEnv: !!process.env,
-      geminiKeyExists: !!process.env.GEMINI_API_KEY,
-      geminiKeyLength: process.env.GEMINI_API_KEY?.length,
-    });
-    
     if (!key) {
-      throw new Error('GEMINI_API_KEY is not configured. Please add it to your .env file and restart the server.');
+      throw new Error('GEMINI_API_KEY is missing in .env');
     }
 
     this.genAI = new GoogleGenerativeAI(key);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    // Base model (no grounding) – used for simple disease check
+    this.defaultModel = this.genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      safetySettings: [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+      ],
+    });
   }
 
-  /**
-   * Analyze a crop image for diseases and health issues
-   * @param request - Image data and analysis parameters
-   * @returns Structured analysis results
-   */
+  // ──────────────────────────────────────────────────────────────
+  // 1. Simple Disease Detection (no grounding)
+  // ──────────────────────────────────────────────────────────────
   async analyzeImage(request: GeminiAnalysisRequest): Promise<GeminiAnalysisResponse> {
-    try {
-      // Build the prompt based on language
-      const prompt = this.buildPrompt(request.language);
+    const prompt = this.buildDiseasePrompt(request.language);
+    const imagePart = {
+      inlineData: { data: request.imageBase64, mimeType: request.mimeType },
+    };
 
-      // Prepare image data for Gemini
-      const imagePart = {
-        inlineData: {
-          data: request.imageBase64,
-          mimeType: request.mimeType,
-        },
-      };
+    const result: any = await this.callWithRetry(() =>
+      this.defaultModel.generateContent([prompt, imagePart])
+    );
 
-      // Call Gemini API with retry logic
-      const result = await this.retryWithBackoff(
-        async () => {
-          const response = await this.model.generateContent([prompt, imagePart]);
-          return response;
-        },
-        3
-      );
-
-      // Parse and return the response
-      const responseText = result.response.text();
-      return this.parseResponse(responseText);
-    } catch (error: any) {
-      if (error instanceof GeminiAPIError) {
-        throw error;
-      }
-      
-      throw new GeminiAPIError(
-        `Failed to analyze image: ${error.message}`,
-        true,
-        error
-      );
-    }
+    const text = result.response.text();
+    return this.parseDiseaseResponse(text);
   }
 
-  /**
-   * Build the analysis prompt in the specified language
-   * @param language - Target language for the response
-   * @returns Formatted prompt string
-   */
-  private buildPrompt(language: string): string {
-    if (language === 'bn') {
-      return `ধান ফসলের ছবি বিশ্লেষণ করুন। শুধুমাত্র JSON ফরম্যাটে উত্তর দিন (কোন অতিরিক্ত টেক্সট নয়):
+  // ──────────────────────────────────────────────────────────────
+  // 2. Pest Detection WITH Google Search Grounding (Visual RAG)
+  // ──────────────────────────────────────────────────────────────
+  async analyzePestImage(request: GeminiAnalysisRequest): Promise<GeminiPestAnalysisResponse> {
+    const prompt = this.buildPestPrompt(request.language);
+    const imagePart = {
+      inlineData: { data: request.imageBase64, mimeType: request.mimeType },
+    };
+
+    // Use Google Search for grounding (googleSearchRetrieval not supported in 2.5-flash)
+    const modelWithSearch = this.genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      safetySettings: [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+      ],
+      tools: [{ googleSearch: {} } as any],
+    });
+
+    const result: any = await this.callWithRetry(() =>
+      modelWithSearch.generateContent([prompt, imagePart])
+    );
+
+    const text = result.response.text();
+    const groundingMetadata = result.response.candidates?.[0]?.groundingMetadata;
+
+    return this.parsePestResponse(text, groundingMetadata);
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // Prompt Builders
+  // ──────────────────────────────────────────────────────────────
+  private buildDiseasePrompt(lang: 'bn' | 'en'): string {
+    return lang === 'bn'
+      ? `এই ফসলের ছবি বিশ্লেষণ করুন। শুধুমাত্র JSON দিন, কোনো অতিরিক্ত টেক্সট নয়:
 {
-  "disease": "রোগের নাম (যেমন: ব্লাস্ট, ব্রাউন স্পট) অথবা 'সুস্থ ধান'",
-  "confidence": 85,
-  "remedy": "সংক্ষিপ্ত চিকিৎসা পরামর্শ (১-২ বাক্য)"
-}`;
-    }
-
-    return `Analyze this paddy crop image for diseases. Respond ONLY with JSON (no extra text):
+  "disease": "রোগের নাম অথবা 'সুস্থ ফসল'",
+  "confidence": 90,
+  "remedy": "১-২ বাক্যে চিকিৎসা"
+}`
+      : `Analyze this crop image. Return ONLY valid JSON:
 {
-  "disease": "specific disease name (e.g., Blast, Brown Spot) or 'Healthy'",
-  "confidence": 85,
-  "remedy": "brief treatment advice (1-2 sentences)"
+  "disease": "disease name or 'Healthy crop'",
+  "confidence": 90,
+  "remedy": "treatment in 1-2 sentences"
 }`;
   }
 
-  /**
-   * Parse Gemini API response into structured format
-   * @param rawResponse - Raw text response from Gemini
-   * @returns Parsed analysis response
-   */
-  private parseResponse(rawResponse: string): GeminiAnalysisResponse {
+  private buildPestPrompt(lang: 'bn' | 'en'): string {
+    return lang === 'bn'
+      ? `এই ফসলের ছবিতে কীটপতঙ্গ আছে কিনা শনাক্ত করুন। সবচেয়ে সঠিক ও আপডেট তথ্য ব্যবহার করুন। শুধুমাত্র JSON দিন:
+{
+  "pest": "কীটপতঙ্গের নাম (বাংলা) অথবা 'কোনো কীটপতঙ্গ নেই'",
+  "scientificName": "বৈজ্ঞানিক নাম",
+  "confidence": 92,
+  "riskLevel": "high|medium|low",
+  "remedy": "আজই কী করবেন (বাংলায়)",
+  "preventive": "ভবিষ্যতে প্রতিরোধের উপায়"
+}`
+      : `Identify any pest in this crop image using the latest knowledge. Return ONLY JSON:
+{
+  "pest": "pest name (English) or 'No pest detected'",
+  "scientificName": "scientific name",
+  "confidence": 92,
+  "riskLevel": "high|medium|low",
+  "remedy": "immediate action (English)",
+  "preventive": "prevention tips"
+}`;
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // Response Parsers
+  // ──────────────────────────────────────────────────────────────
+  private parseDiseaseResponse(text: string): GeminiAnalysisResponse {
+    const json = this.extractJson(text);
+    const name = json.disease?.trim() || 'Unknown';
+    const isHealthy = /healthy|সুস্থ|none|নেই/i.test(name);
+    const confidence = Number(json.confidence) || 50;
+
+    return {
+      diseases: isHealthy
+        ? []
+        : [{ name, confidence, severity: confidence > 80 ? 'high' : confidence > 60 ? 'medium' : 'low', affectedArea: 'leaves' }],
+      overallHealth: isHealthy ? 'healthy' : confidence > 70 ? 'major_issues' : 'minor_issues',
+      recommendations: json.remedy ? [json.remedy.trim()] : [],
+      preventiveMeasures: [],
+    };
+  }
+
+  private parsePestResponse(text: string, metadata?: any): GeminiPestAnalysisResponse {
+    const json = this.extractJson(text);
+    const name = json.pest?.trim() || 'Unknown';
+    const noPest = /কোনো|no pest|কীটপতঙ্গ নেই|none/i.test(name);
+    const risk = this.normalizeRiskLevel(json.riskLevel);
+    const confidence = Number(json.confidence) || 50;
+
+    return {
+      pests: noPest
+        ? []
+        : [{
+            name,
+            scientificName: json.scientificName || 'N/A',
+            confidence,
+            riskLevel: risk,
+            affectedArea: 'leaves and stems',
+          }],
+      overallRisk: noPest ? 'low' : risk,
+      recommendations: json.remedy ? [json.remedy.trim()] : [],
+      preventiveMeasures: json.preventive ? [json.preventive.trim()] : [],
+      groundingSources: this.extractSources(metadata),
+    };
+  }
+
+  private extractJson(text: string): any {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new GeminiAPIError('No JSON found in Gemini response');
+    return JSON.parse(match[0]);
+  }
+
+  private normalizeRiskLevel(level?: string): 'high' | 'medium' | 'low' {
+    if (!level) return 'medium';
+    const l = level.toLowerCase();
+    if (l.includes('high') || l.includes('উচ্চ') || l.includes('গুরুতর')) return 'high';
+    if (l.includes('low') || l.includes('কম')) return 'low';
+    return 'medium';
+  }
+
+  private extractSources(metadata?: any): GroundingSource[] {
+    if (!metadata?.groundingChunks) return [];
     try {
-      // Extract JSON from response
-      let jsonText = rawResponse.trim();
-      
-      // Remove markdown code blocks if present
-      if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-      } else if (jsonText.startsWith('```')) {
-        jsonText = jsonText.replace(/```\n?/g, '');
-      }
-
-      // Remove any leading/trailing text that's not JSON
-      const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        jsonText = jsonMatch[0];
-      }
-
-      const parsed = JSON.parse(jsonText);
-
-      // Normalize disease name
-      const diseaseName = parsed.disease?.trim() || 'Unknown';
-      const isHealthy = 
-        diseaseName.toLowerCase().includes('সুস্থ') || 
-        diseaseName.toLowerCase().includes('healthy') ||
-        diseaseName.toLowerCase() === 'no disease' ||
-        diseaseName.toLowerCase() === 'none';
-      
-      // Determine severity based on confidence
-      const confidence = parsed.confidence || 50;
-      let severity: 'low' | 'medium' | 'high' = 'medium';
-      if (confidence >= 80) severity = 'high';
-      else if (confidence < 60) severity = 'low';
-
-      return {
-        diseases: isHealthy ? [] : [{
-          name: diseaseName,
-          confidence,
-          severity,
-          affectedArea: 'leaves'
-        }],
-        overallHealth: isHealthy ? 'healthy' : (severity === 'high' ? 'major_issues' : 'minor_issues'),
-        recommendations: parsed.remedy ? [parsed.remedy.trim()] : [],
-        preventiveMeasures: []
-      };
-    } catch (error: any) {
-      console.error('[GeminiService] Parse error:', error);
-      console.error('[GeminiService] Raw response:', rawResponse);
-      throw new GeminiAPIError(
-        `Failed to parse Gemini response: ${error.message}`,
-        false,
-        error
-      );
+      return metadata.groundingChunks
+        .filter((c: any) => c.web)
+        .map((c: any) => ({
+          title: c.web.title || 'Source',
+          url: c.web.uri || '',
+          snippet: c.web.snippet,
+        }))
+        .filter((s: GroundingSource) => s.url);
+    } catch (error) {
+      console.error('[GeminiService] Error extracting grounding sources:', error);
+      return [];
     }
   }
 
-  /**
-   * Retry a function with exponential backoff
-   * @param fn - Function to retry
-   * @param maxRetries - Maximum number of retry attempts
-   * @returns Result of the function
-   */
-  private async retryWithBackoff<T>(
-    fn: () => Promise<T>,
-    maxRetries: number
-  ): Promise<T> {
+  // ──────────────────────────────────────────────────────────────
+  // Retry Logic
+  // ──────────────────────────────────────────────────────────────
+  private async callWithRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
     let lastError: any;
-    
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    for (let i = 0; i <= retries; i++) {
       try {
         return await fn();
-      } catch (error: any) {
-        lastError = error;
-        
-        // Don't retry on last attempt
-        if (attempt === maxRetries) {
-          break;
-        }
-
-        // Calculate backoff delay: 1s, 2s, 4s
-        const delay = Math.pow(2, attempt) * 1000;
-        
-        console.log(`Gemini API call failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms...`);
-        
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, delay));
+      } catch (err: any) {
+        lastError = err;
+        if (i === retries) break;
+        const delay = Math.pow(2, i) * 1000;
+        console.log(`Gemini call failed, retry ${i + 1}/${retries + 1} in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
       }
     }
-
-    throw new GeminiAPIError(
-      `Failed after ${maxRetries + 1} attempts: ${lastError.message}`,
-      false,
-      lastError
-    );
+    throw new GeminiAPIError(`Failed after ${retries + 1} attempts`, true, lastError);
   }
 }

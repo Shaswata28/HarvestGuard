@@ -177,6 +177,9 @@ export interface HealthScanResponse {
   immediateFeedback?: 'correct' | 'incorrect' | 'unsure';
   outcome?: 'recovered' | 'same' | 'worse';
   status: 'pending' | 'resolved' | 'healthy';
+  riskLevel?: 'high' | 'medium' | 'low';
+  groundingSources?: GroundingSource[];
+  scanType?: 'disease' | 'pest';
 }
 
 export interface HealthScanListResponse {
@@ -578,18 +581,36 @@ export interface AnalyzeScanRequest {
   image: File; // Sent as multipart/form-data
 }
 
+export interface PestIdentification {
+  pestName: string;
+  scientificName: string;
+  riskLevel: 'high' | 'medium' | 'low';
+  confidence: number;
+  affectedArea: string;
+}
+
+export interface GroundingSource {
+  title: string;
+  url: string;
+  snippet?: string;
+}
+
 export interface AnalyzeScanResponse {
   scan: HealthScanResponse;
   analysis: {
+    scanType: 'disease' | 'pest';
     diseases: Array<{
       name: string;
       confidence: number;
       severity: 'low' | 'medium' | 'high';
       affectedArea: string;
     }>;
+    pests?: PestIdentification[];
+    riskLevel?: 'high' | 'medium' | 'low';
     overallHealth: 'healthy' | 'minor_issues' | 'major_issues';
     recommendations: string[];
     preventiveMeasures: string[];
+    groundingSources?: GroundingSource[];
   };
   message: string;
 }

@@ -17,6 +17,7 @@ export default function Login() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [mobileNumber, setMobileNumber] = useState("");
+  const [password, setPassword] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,9 +33,16 @@ export default function Login() {
       });
       return;
     }
+    if (!password || password.length < 6) {
+      toast({
+        title: language === "bn" ? "পাসওয়ার্ড দিন (কমপক্ষে ৬ অক্ষর)" : "Enter password (at least 6 characters)",
+        variant: "destructive",
+      });
+      return;
+    }
     setLoading(true);
     setTimeout(() => {
-      const demoOTP = "123456";
+      const demoOTP = "1234";
       console.log("🔐 DEMO MODE: OTP sent to", mobileNumber);
       console.log("📱 Your OTP is:", demoOTP);
       console.log("⏱️  Auto-filling in 1.5 seconds...");
@@ -51,7 +59,7 @@ export default function Login() {
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otp.length !== 6) return;
+    if (otp.length !== 4) return;
     setLoading(true);
 
     try {
@@ -65,8 +73,8 @@ export default function Login() {
       }
 
       // Call backend login API
-      // NOTE: For demo, OTP is used as password. In production, implement proper OTP verification
-      // or use the actual password from registration
+      // NOTE: For development, OTP is shown for UX but we send the actual password
+      // In production, implement proper OTP verification with SMS service
       const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
       const apiUrl = apiBaseUrl ? `${apiBaseUrl}/api/farmers/login` : '/api/farmers/login';
       
@@ -75,7 +83,7 @@ export default function Login() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: formattedPhone,
-          password: otp // Using OTP as password - must match registration password
+          password: password // Using actual password from the form
         })
       });
 
@@ -175,6 +183,19 @@ export default function Login() {
                     disabled={loading}
                   />
                 </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground">
+                    {language === "bn" ? "পাসওয়ার্ড" : "Password"}
+                  </label>
+                  <Input
+                    type="password"
+                    placeholder={language === "bn" ? "আপনার পাসওয়ার্ড" : "Your password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="h-12 rounded-xl border-primary/20 focus:ring-primary bg-white font-medium text-lg"
+                    disabled={loading}
+                  />
+                </div>
                 <Button type="submit" className="w-full h-12 rounded-xl text-lg font-bold bg-primary hover:bg-primary/90" disabled={loading}>
                   {loading ? t("loading") : (language === "bn" ? "ওটিপি পাঠান" : "Send OTP")}
                 </Button>
@@ -183,13 +204,13 @@ export default function Login() {
               <form onSubmit={handleVerifyOTP} className="space-y-6">
                 <div className="space-y-4 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {language === "bn" ? "আপনার মোবাইলে পাঠানো ৬ সংখ্যার কোডটি দিন" : "Enter the 6-digit code sent to your mobile"}
+                    {language === "bn" ? "আপনার মোবাইলে পাঠানো ৪ সংখ্যার কোডটি দিন" : "Enter the 4-digit code sent to your mobile"}
                   </p>
                   <div className="flex justify-center">
-                    <OTPInput maxLength={6} value={otp} onChange={setOtp} render={({ slots }) => (
+                    <OTPInput maxLength={4} value={otp} onChange={setOtp} render={({ slots }) => (
                       <div className="flex gap-2">
                         {slots.map((slot, idx) => (
-                          <div key={idx} className={`w-10 h-12 flex items-center justify-center border-2 rounded-lg text-xl font-bold transition-all ${slot.isActive ? "border-primary bg-primary/5" : "border-muted"}`}>
+                          <div key={idx} className={`w-12 h-14 flex items-center justify-center border-2 rounded-lg text-xl font-bold transition-all ${slot.isActive ? "border-primary bg-primary/5" : "border-muted"}`}>
                             {slot.char}
                           </div>
                         ))}

@@ -54,7 +54,13 @@ import type {
   HealthScanQueryParams,
   LossEventQueryParams,
   InterventionQueryParams,
-  AdvisoryQueryParams
+  AdvisoryQueryParams,
+  // Scanner types
+  AnalyzeScanRequest,
+  AnalyzeScanResponse,
+  PestIdentification,
+  GroundingSource,
+  ScannerErrorResponse
 } from './api';
 
 describe('Shared API Types', () => {
@@ -167,6 +173,17 @@ describe('Shared API Types', () => {
         'AdvisoryQueryParams'
       ];
       expect(types.length).toBe(6);
+    });
+
+    it('should import all scanner types', () => {
+      const types: string[] = [
+        'AnalyzeScanRequest',
+        'AnalyzeScanResponse',
+        'PestIdentification',
+        'GroundingSource',
+        'ScannerErrorResponse'
+      ];
+      expect(types.length).toBe(5);
     });
   });
 
@@ -281,6 +298,122 @@ describe('Shared API Types', () => {
         'AuthorizationError'
       ];
       expect(errorTypes).toHaveLength(6);
+    });
+
+    it('should support all scan types', () => {
+      const scanTypes: Array<'disease' | 'pest'> = ['disease', 'pest'];
+      expect(scanTypes).toHaveLength(2);
+    });
+
+    it('should support all risk levels', () => {
+      const riskLevels: Array<'high' | 'medium' | 'low'> = ['high', 'medium', 'low'];
+      expect(riskLevels).toHaveLength(3);
+    });
+  });
+
+  describe('Scanner Type Structure Validation', () => {
+    it('should have valid PestIdentification structure', () => {
+      const mockPest: PestIdentification = {
+        pestName: 'Rice Stem Borer',
+        scientificName: 'Scirpophaga incertulas',
+        riskLevel: 'high',
+        confidence: 85,
+        affectedArea: 'stem'
+      };
+      expect(mockPest.pestName).toBeDefined();
+      expect(mockPest.scientificName).toBeDefined();
+      expect(mockPest.riskLevel).toBe('high');
+    });
+
+    it('should have valid GroundingSource structure', () => {
+      const mockSource: GroundingSource = {
+        title: 'Rice Pest Management Guide',
+        url: 'https://example.com/guide',
+        snippet: 'Information about rice pests'
+      };
+      expect(mockSource.title).toBeDefined();
+      expect(mockSource.url).toBeDefined();
+    });
+
+    it('should have valid AnalyzeScanResponse structure for disease scan', () => {
+      const mockResponse: AnalyzeScanResponse = {
+        scan: {
+          _id: '507f1f77bcf86cd799439011',
+          farmerId: '507f1f77bcf86cd799439012',
+          capturedAt: new Date().toISOString(),
+          diseaseLabel: 'Blast',
+          confidence: 90,
+          status: 'pending'
+        },
+        analysis: {
+          scanType: 'disease',
+          diseases: [{
+            name: 'Blast',
+            confidence: 90,
+            severity: 'high',
+            affectedArea: 'leaves'
+          }],
+          overallHealth: 'major_issues',
+          recommendations: ['Apply fungicide'],
+          preventiveMeasures: ['Maintain proper spacing']
+        },
+        message: 'Analysis complete'
+      };
+      expect(mockResponse.analysis.scanType).toBe('disease');
+      expect(mockResponse.analysis.diseases).toHaveLength(1);
+    });
+
+    it('should have valid AnalyzeScanResponse structure for pest scan', () => {
+      const mockResponse: AnalyzeScanResponse = {
+        scan: {
+          _id: '507f1f77bcf86cd799439011',
+          farmerId: '507f1f77bcf86cd799439012',
+          capturedAt: new Date().toISOString(),
+          diseaseLabel: 'Pest Infestation',
+          confidence: 85,
+          status: 'pending'
+        },
+        analysis: {
+          scanType: 'pest',
+          diseases: [],
+          pests: [{
+            pestName: 'Rice Stem Borer',
+            scientificName: 'Scirpophaga incertulas',
+            riskLevel: 'high',
+            confidence: 85,
+            affectedArea: 'stem'
+          }],
+          riskLevel: 'high',
+          overallHealth: 'major_issues',
+          recommendations: ['Apply pesticide'],
+          preventiveMeasures: ['Monitor regularly'],
+          groundingSources: [{
+            title: 'Pest Management Guide',
+            url: 'https://example.com/guide'
+          }]
+        },
+        message: 'Analysis complete'
+      };
+      expect(mockResponse.analysis.scanType).toBe('pest');
+      expect(mockResponse.analysis.pests).toHaveLength(1);
+      expect(mockResponse.analysis.riskLevel).toBe('high');
+      expect(mockResponse.analysis.groundingSources).toHaveLength(1);
+    });
+
+    it('should have valid ScannerErrorResponse structure', () => {
+      const mockError: ScannerErrorResponse = {
+        error: {
+          type: 'GeminiAPIError',
+          message: 'API request failed',
+          details: {
+            geminiError: 'Rate limit exceeded',
+            retryAfter: 60
+          },
+          timestamp: new Date().toISOString()
+        }
+      };
+      expect(mockError.error.type).toBe('GeminiAPIError');
+      expect(mockError.error.details?.retryAfter).toBe(60);
     });
   });
 });
