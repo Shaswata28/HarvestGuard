@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Advisory System provides intelligent, context-aware recommendations to farmers based on weather conditions, crop status, and agricultural best practices. The system automatically generates advisories when weather conditions pose risks or opportunities, and allows farmers to view, manage, and track these recommendations through the application interface.
+The Advisory System provides intelligent, context-aware recommendations to farmers based on weather conditions, crop batch data, and agricultural best practices. The system automatically generates advisories by combining weather forecasts with the farmer's specific crop information (crop type, planting date, growth stage, expected harvest date) to deliver simple, actionable guidance in Bangla that farmers can easily understand and act upon.
 
 ## Glossary
 
@@ -10,7 +10,9 @@ The Advisory System provides intelligent, context-aware recommendations to farme
 - **Advisory**: A recommendation or alert message containing actionable guidance for farmers regarding their crops
 - **Farmer**: A registered user of the system who manages crop batches and receives advisories
 - **Weather-Based Advisory**: An advisory automatically generated based on weather data analysis
-- **Crop Batch**: A specific planting of crops tracked in the system
+- **Crop Batch**: A specific planting of crops tracked in the system, including crop type, planting date, expected harvest date, and current growth stage
+- **Context-Aware Advisory**: An advisory that combines weather forecast data with farmer's crop batch information to provide specific, actionable recommendations
+- **Growth Stage**: The current developmental phase of a crop (e.g., seedling, vegetative, flowering, maturity, harvest-ready)
 - **Read Status**: A boolean flag indicating whether a farmer has viewed an advisory
 
 ## Requirements
@@ -62,6 +64,22 @@ The Advisory System provides intelligent, context-aware recommendations to farme
 3. WHEN a farmer has no active crops THEN the Advisory System SHALL generate only general weather warnings
 4. WHEN multiple crop batches exist THEN the Advisory System SHALL generate advisories relevant to all active batches
 5. WHEN crop-specific risks are identified THEN the Advisory System SHALL include the affected crop type in the advisory content
+
+### Requirement 6
+
+**User Story:** As a farmer, I want to receive simple Bangla advisories that combine weather forecasts with my crop information, so that I can quickly understand what action to take even if I read slowly.
+
+#### Acceptance Criteria
+
+1. WHEN generating advisories THEN the Advisory System SHALL combine weather forecast data with the farmer's active crop batch information
+2. WHEN a farmer has rice crops approaching harvest stage AND heavy rain is forecasted THEN the Advisory System SHALL generate an advisory recommending immediate harvest or protection in simple Bangla
+3. WHEN high temperature is forecasted AND a farmer has rice crops in growing stage THEN the Advisory System SHALL generate an advisory recommending irrigation timing in simple Bangla
+4. WHEN generating advisories THEN the Advisory System SHALL present the message in simple Bangla language that farmers can understand even when reading slowly
+5. WHEN displaying advisories THEN the Advisory System SHALL show the weather condition with probability or severity and specific action in a single clear message format
+6. WHEN crop batch data includes expected harvest date THEN the Advisory System SHALL calculate days until harvest to determine urgency of harvest-related advisories
+7. WHEN crop batch data includes expected harvest date within 7 days AND weather risks are detected THEN the Advisory System SHALL prioritize harvest-related advisories
+8. WHEN multiple weather risks affect the same crop THEN the Advisory System SHALL prioritize the most urgent risk in the advisory message
+9. WHEN generating advisories THEN the Advisory System SHALL use the crop type from the farmer's crop batch data to provide crop-specific recommendations
 
 ### Requirement 5
 

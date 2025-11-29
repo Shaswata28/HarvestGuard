@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useLanguage } from "@/context/LangContext";
-import { LayoutGrid, Sprout, ScanLine, User } from "lucide-react";
+import { LayoutGrid, Sprout, ScanLine, User, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function BottomNav() {
@@ -19,6 +19,11 @@ export default function BottomNav() {
       path: "/add-crop",
       icon: Sprout,
       label: language === "bn" ? "ফসল" : "Add Crop",
+    },
+    {
+      path: "/local-risk-map",
+      icon: MapPin,
+      label: language === "bn" ? "ঝুঁকির মানচিত্র" : "Risk Map",
     },
     {
       path: "/scanner",

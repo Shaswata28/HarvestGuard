@@ -184,6 +184,64 @@ export const handleCheckFarmer: RequestHandler = async (req, res, next) => {
 };
 
 /**
+ * GET /api/farmers/:id/risk-map-data
+ * Get farmer data for the local risk map
+ */
+export const handleGetRiskMapData: RequestHandler = async (req, res, next) => {
+  try {
+    const db = getDatabase();
+    const farmersRepository = new FarmersRepository(db);
+    const farmerService = new FarmerService(farmersRepository);
+
+    const farmerId = new ObjectId(req.params.id);
+    const farmer = await farmerService.getFarmerById(farmerId);
+
+    // Get district coordinates from shared data
+    const { LOCATION_COORDINATES, DEFAULT_LOCATION } = await import('../data/bangladesh-locations');
+    
+    let lat = DEFAULT_LOCATION.lat;
+    let lng = DEFAULT_LOCATION.lon;
+    
+    // Try to get district coordinates
+    const divisionData = LOCATION_COORDINATES[farmer.division];
+    if (divisionData && divisionData[farmer.district]) {
+      const coords = divisionData[farmer.district].coordinates;
+      lat = coords.lat;
+      lng = coords.lon;
+    }
+
+    // TODO: Fetch actual weather and crop data from database
+    // For now, return mock data structure
+    const response = {
+      id: farmerId.toString(),
+      location: {
+        lat,
+        lng,
+        district: farmer.district,
+        division: farmer.division,
+      },
+      weather: {
+        temperature: 30,
+        humidity: 70,
+        rainfall: 20,
+        condition: 'sunny' as const,
+      },
+      crop: {
+        cropType: 'ধান',
+        cropStage: 'growing' as const,
+        storageType: 'field' as const,
+      },
+      riskLevel: 'Medium' as const,
+      advisory: 'আবহাওয়া পরীক্ষা করুন → ধান ক্ষেতে সতর্ক থাকুন',
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Create and configure the farmers router
  */
 export function createFarmersRouter(): Router {
@@ -192,6 +250,7 @@ export function createFarmersRouter(): Router {
   router.post('/register', validateBody(registerSchema), handleRegister);
   router.post('/login', validateBody(loginSchema), handleLogin);
   router.get('/check/:phone', handleCheckFarmer);
+  router.get('/:id/risk-map-data', validateParams(idParamSchema), handleGetRiskMapData);
   router.get('/:id', validateParams(idParamSchema), handleGetFarmer);
   router.put('/:id', validateParams(idParamSchema), validateBody(updateSchema), handleUpdateFarmer);
 

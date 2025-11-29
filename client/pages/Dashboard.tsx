@@ -38,7 +38,6 @@ import {
 import { Input } from "@/components/ui/input";
 import WeightInput from "@/components/WeightInput";
 import { storageTypes } from "@/data/mockData";
-import { generateAdvisories } from "@/utils/advisoryGenerator";
 import { useAdvisoryNotifications } from "@/hooks/useAdvisoryNotifications";
 import { useHarvestReminders } from "@/hooks/useHarvestReminders";
 
@@ -53,17 +52,9 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [showOfflineIndicator, setShowOfflineIndicator] = useState(false);
 
-  // Generate advisories from weather data
-  const advisories = generateAdvisories({
-    temperature: weather.temperature,
-    rainfall: weather.rainChance || 0,
-    humidity: weather.humidity,
-    windSpeed: weather.windSpeed,
-  });
-
   // Monitor advisories and trigger notifications
   useAdvisoryNotifications({
-    advisories,
+    advisories: [], // TODO: Connect to advisory system
     language: language as 'bn' | 'en',
     enabled: isAuthenticated && !!farmerId,
   });

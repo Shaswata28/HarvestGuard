@@ -7,13 +7,20 @@
 
 import { ObjectId } from 'mongodb';
 import { AdvisoryService } from './advisory.service';
-import { getWeatherForFarmer, generateAdvisories } from './weather.service';
+import { getWeatherForFarmer } from './weather.service';
 import { FarmersRepository } from '../db/repositories/farmers.repository';
 import { CropBatchesRepository } from '../db/repositories/cropBatches.repository';
 import { AdvisoriesRepository } from '../db/repositories/advisories.repository';
-import { Advisory as WeatherAdvisory } from '@shared/api';
 import { Advisory } from '../db/schemas';
 import { logError } from '../utils/errors';
+import { 
+  generateBanglaAdvisory, 
+  calculateDaysUntilHarvest, 
+  determineMostUrgentRisk,
+  WeatherCondition,
+  CropContext,
+  WeatherRiskData
+} from '../utils/banglaAdvisoryGenerator';
 
 /**
  * Weather Advisory Generation Service
@@ -46,38 +53,37 @@ export class WeatherAdvisoryService {
       // Get weather data for farmer's location
       const weather = await getWeatherForFarmer(farmerId.toString());
 
-      // Generate weather-based advisories
-      const weatherAdvisories = generateAdvisories(weather);
+      // Get farmer's active crop batches
+      const cropBatches = await this.cropBatchesRepository.findByFarmerId(farmerId, 'growing');
 
-      if (weatherAdvisories.length === 0) {
-        console.log(`No weather advisories needed for farmer ${farmerId}`);
+      // Determine the most urgent weather risk
+      const weatherRiskData: WeatherRiskData = {
+        temperature: weather.temperature,
+        rainfall: weather.rainfall,
+        humidity: weather.humidity,
+        windSpeed: weather.windSpeed
+      };
+
+      const mostUrgentRisk = determineMostUrgentRisk(weatherRiskData);
+
+      // Generate context-aware advisory (even if no risk, provide favorable weather message)
+      const advisory = this.generateContextAwareAdvisory(mostUrgentRisk, cropBatches, weather);
+
+      if (!advisory) {
+        console.log(`No advisory generated for farmer ${farmerId}`);
         return [];
       }
 
-      // Get farmer's active crop batches for enrichment
-      const cropBatches = await this.cropBatchesRepository.findByFarmerId(farmerId, 'growing');
+      // Create the advisory
+      const createdAdvisory = await this.advisoryService.createFarmerAdvisory({
+        farmerId,
+        source: 'weather',
+        message: advisory.message,
+        actions: [] // Actions are embedded in the Bangla message
+      });
 
-      // Create advisories with crop enrichment
-      const createdAdvisories: Advisory[] = [];
-
-      for (const weatherAdvisory of weatherAdvisories) {
-        const enrichedMessage = this.enrichAdvisoryWithCropInfo(
-          weatherAdvisory,
-          cropBatches.map(b => b.cropType)
-        );
-
-        const advisory = await this.advisoryService.createFarmerAdvisory({
-          farmerId,
-          source: 'weather',
-          message: enrichedMessage,
-          actions: weatherAdvisory.actions
-        });
-
-        createdAdvisories.push(advisory);
-      }
-
-      console.log(`✓ Created ${createdAdvisories.length} weather advisories for farmer ${farmerId}`);
-      return createdAdvisories;
+      console.log(`✓ Created weather advisory for farmer ${farmerId}`);
+      return [createdAdvisory];
     } catch (error) {
       logError(error as Error, 'WeatherAdvisoryService.generateForFarmer');
       throw error;
@@ -193,29 +199,142 @@ export class WeatherAdvisoryService {
   }
 
   /**
-   * Enriches advisory message with crop-specific information
-   * @param advisory - The weather advisory
-   * @param cropTypes - Array of crop types the farmer is growing
-   * @returns Enriched message string in Bangla
+   * Generates context-aware advisory by combining weather risk with crop data
+   * @param weatherRisk - The most urgent weather risk (null if no risk)
+   * @param cropBatches - Array of active crop batches
+   * @param weather - Current weather data
+   * @returns Advisory object with message and severity
    */
-  private enrichAdvisoryWithCropInfo(
-    advisory: WeatherAdvisory,
-    cropTypes: string[]
-  ): string {
-    let message = advisory.message;
-
-    // Add crop-specific guidance if farmer has active crops
-    if (cropTypes.length > 0) {
-      const uniqueCrops = [...new Set(cropTypes)];
-      const cropList = uniqueCrops.join(', ');
-      
-      // Add Bangla crop-specific message
-      message += `\n\nআপনার ${cropList} ফসলের জন্য বিশেষ সতর্কতা অবলম্বন করুন।`;
-    } else {
-      // General message for farmers without active crops
-      message += '\n\nআপনার এলাকার আবহাওয়া পরিস্থিতি সম্পর্কে সতর্ক থাকুন।';
+  private generateContextAwareAdvisory(
+    weatherRisk: WeatherCondition | null,
+    cropBatches: any[],
+    weather?: any
+  ): { message: string; severity: 'low' | 'medium' | 'high' } | null {
+    // If no weather risk, generate favorable weather message
+    if (!weatherRisk) {
+      return this.generateFavorableWeatherMessage(cropBatches, weather);
     }
 
-    return message;
+    // If no active crops, generate general weather warning
+    if (cropBatches.length === 0) {
+      return this.generateGeneralWeatherWarning(weatherRisk);
+    }
+
+    // Find the crop with the most urgent harvest date (harvest advisory prioritization)
+    let mostUrgentCrop: CropContext | null = null;
+    let minDaysUntilHarvest = Infinity;
+
+    for (const batch of cropBatches) {
+      const daysUntilHarvest = calculateDaysUntilHarvest(batch.expectedHarvestDate);
+      
+      const cropContext: CropContext = {
+        cropType: batch.cropType,
+        daysUntilHarvest,
+        stage: batch.stage
+      };
+
+      // Prioritize crops approaching harvest (within 7 days)
+      if (daysUntilHarvest !== null && daysUntilHarvest <= 7) {
+        if (daysUntilHarvest < minDaysUntilHarvest) {
+          minDaysUntilHarvest = daysUntilHarvest;
+          mostUrgentCrop = cropContext;
+        }
+      } else if (!mostUrgentCrop) {
+        // If no harvest-urgent crop found yet, use the first growing crop
+        mostUrgentCrop = cropContext;
+      }
+    }
+
+    // Generate advisory using the most urgent crop context
+    if (mostUrgentCrop) {
+      return generateBanglaAdvisory(weatherRisk, mostUrgentCrop);
+    }
+
+    return null;
+  }
+
+  /**
+   * Generates a general weather warning when farmer has no active crops
+   * @param weatherRisk - The weather risk condition
+   * @returns Advisory object with general warning message
+   */
+  private generateGeneralWeatherWarning(
+    weatherRisk: WeatherCondition
+  ): { message: string; severity: 'low' | 'medium' | 'high' } {
+    const value = Math.round(weatherRisk.value);
+    
+    switch (weatherRisk.type) {
+      case 'rain':
+        return {
+          message: `বৃষ্টির সম্ভাবনা ${value}% → আপনার এলাকায় বৃষ্টি হতে পারে, সতর্ক থাকুন`,
+          severity: weatherRisk.severity
+        };
+      
+      case 'heat':
+        return {
+          message: `তাপমাত্রা ${value}°C উঠবে → গরমের জন্য সতর্ক থাকুন`,
+          severity: weatherRisk.severity
+        };
+      
+      case 'wind':
+        return {
+          message: `ঝড়ো হাওয়া ${value} মি/সে → আপনার এলাকায় ঝড় হতে পারে, সতর্ক থাকুন`,
+          severity: weatherRisk.severity
+        };
+      
+      case 'humidity':
+        return {
+          message: `আর্দ্রতা ${value}% → আবহাওয়া স্যাঁতসেঁতে থাকবে, সতর্ক থাকুন`,
+          severity: weatherRisk.severity
+        };
+      
+      default:
+        return {
+          message: 'আবহাওয়া পরিবর্তন হতে পারে → সতর্ক থাকুন',
+          severity: 'low'
+        };
+    }
+  }
+
+  /**
+   * Generates a favorable weather message when there are no significant risks
+   * @param cropBatches - Array of active crop batches
+   * @param weather - Current weather data
+   * @returns Advisory object with favorable weather message
+   */
+  private generateFavorableWeatherMessage(
+    cropBatches: any[],
+    weather?: any
+  ): { message: string; severity: 'low' | 'medium' | 'high' } {
+    const temp = weather ? Math.round(weather.temperature) : null;
+    
+    if (cropBatches.length > 0) {
+      // Check if any crops are approaching harvest
+      const harvestSoonCrops = cropBatches.filter(batch => {
+        const days = calculateDaysUntilHarvest(batch.expectedHarvestDate);
+        return days !== null && days <= 7;
+      });
+
+      if (harvestSoonCrops.length > 0) {
+        const cropType = harvestSoonCrops[0].cropType;
+        return {
+          message: `আবহাওয়া ভালো আছে ${temp ? `(${temp}°C)` : ''} → ${cropType} কাটার জন্য উপযুক্ত সময়`,
+          severity: 'low'
+        };
+      }
+
+      // General favorable message for growing crops
+      const cropType = cropBatches[0].cropType;
+      return {
+        message: `আবহাওয়া ভালো আছে ${temp ? `(${temp}°C)` : ''} → ${cropType} ভালোভাবে বাড়ছে`,
+        severity: 'low'
+      };
+    }
+
+    // No crops - general favorable message
+    return {
+      message: `আবহাওয়া ভালো আছে ${temp ? `(${temp}°C)` : ''} → কৃষিকাজের জন্য উপযুক্ত সময়`,
+      severity: 'low'
+    };
   }
 }

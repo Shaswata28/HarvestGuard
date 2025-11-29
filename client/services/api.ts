@@ -184,4 +184,10 @@ export const apiService = {
     });
     await handleApiResponse<void>(response);
   },
+
+  // Local Risk Map
+  async fetchFarmerDataForRiskMap(farmerId: string): Promise<import('../types/localRiskMap').FarmerData> {
+    const response = await fetch(buildApiUrl(`/api/farmers/${farmerId}/risk-map-data`));
+    return handleApiResponse<import('../types/localRiskMap').FarmerData>(response);
+  },
 };

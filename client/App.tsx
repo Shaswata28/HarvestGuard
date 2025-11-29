@@ -24,6 +24,7 @@ import Profile from "./pages/Profile";
 import Resources from "./pages/Resources";
 import NotFound from "./pages/NotFound";
 import HealthJournal from "./pages/HealthJournal";
+import LocalRiskMap from "./pages/LocalRiskMap";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ function AppWithSync() {
         <Route path="/scanner" element={<AppLayout><Scanner /></AppLayout>} />
         <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
         <Route path="/health-journal" element={<AppLayout><HealthJournal /></AppLayout>} />
+        <Route path="/local-risk-map" element={<AppLayout><LocalRiskMap /></AppLayout>} />
         <Route path="/admin-dashboard" element={<AppLayout><AdminDashboard /></AppLayout>} />
 
         {/* Catch-all Route */}

@@ -1,7 +1,11 @@
 import { useLanguage } from "@/context/LangContext";
-import { AlertTriangle, CloudLightning, Sun, Droplets, Info, Megaphone } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { CloudLightning, Sun, Droplets, Megaphone, RefreshCw } from "lucide-react";
 import { WeatherData } from "@/data/mockData";
 import { toBanglaDigits, cn } from "@/lib/utils";
+import { apiService } from "@/services/api";
+import { useState, useEffect } from "react";
+import type { AdvisoryResponse } from "@shared/api";
 
 interface AdvisoryCardProps {
   weatherData: WeatherData;
@@ -9,48 +13,105 @@ interface AdvisoryCardProps {
 
 export default function AdvisoryCard({ weatherData }: AdvisoryCardProps) {
   const { language } = useLanguage();
+  const { farmerId, isOnline } = useAuth();
+  const [advisories, setAdvisories] = useState<AdvisoryResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const rainChance = weatherData.rainChance ?? 0;
-  const temp = weatherData.temperature ?? 30;
-  const humidity = weatherData.humidity ?? 60;
+  // Fetch advisories from backend
+  useEffect(() => {
+    const fetchAdvisories = async () => {
+      if (!farmerId || !isOnline) {
+        return;
+      }
 
-  const dRain = language === "bn" ? toBanglaDigits(rainChance) : rainChance;
-  const dTemp = language === "bn" ? toBanglaDigits(temp) : temp;
+      setIsLoading(true);
 
-  // Logic for Specific Advice
+      try {
+        const fetchedAdvisories = await apiService.fetchAdvisories(farmerId, {
+          source: 'weather',
+          limit: 1, // Get the most recent advisory
+        });
+        setAdvisories(fetchedAdvisories);
+      } catch (err) {
+        console.error('Failed to fetch advisories:', err);
+        // Fall back to client-side generation on error
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAdvisories();
+  }, [farmerId, isOnline]);
+
+  // Determine advisory content
   let type: "rain" | "heat" | "humidity" | "good" = "good";
   let title = "";
   let message = "";
   let action = "";
 
-  if (rainChance > 70) {
-    type = "rain";
-    title = language === "bn" ? "বৃষ্টি সতর্কতা" : "Rain Alert";
-    message = language === "bn" 
-      ? `আগামী ৩ দিনে ${dRain}% বৃষ্টির সম্ভাবনা।` 
-      : `${rainChance}% rain chance ahead.`;
-    action = language === "bn" ? "পাকা ধান দ্রুত কেটে ঘরে তুলুন।" : "Harvest ripe paddy immediately.";
-  } else if (temp > 35) {
-    type = "heat";
-    title = language === "bn" ? "তাপপ্রবাহ" : "Heatwave";
-    message = language === "bn" 
-      ? `তাপমাত্রা ${dTemp}°C, যা ফসলের জন্য ঝুঁকিপূর্ণ।` 
-      : `High temp (${temp}°C) detected.`;
-    action = language === "bn" ? "বিকালে গাছের গোড়ায় পানি দিন।" : "Irrigate crop roots in afternoon.";
-  } else if (humidity > 85) {
-    type = "humidity";
-    title = language === "bn" ? "আর্দ্রতা বেশি" : "High Humidity";
-    message = language === "bn" 
-      ? "পোকা ও ছত্রাকের আক্রমণ হতে পারে।" 
-      : "Risk of pest & fungal attack.";
-    action = language === "bn" ? "নিয়মিত ক্ষেত পরিদর্শন করুন।" : "Monitor field for pests.";
+  // Use backend advisory if available
+  if (advisories.length > 0 && advisories[0].payload.message) {
+    const advisory = advisories[0];
+    message = advisory.payload.message;
+    
+    // Extract actions if available
+    if (advisory.payload.actions && advisory.payload.actions.length > 0) {
+      action = advisory.payload.actions.join(", ");
+    }
+
+    // Determine type and title from message content
+    // Check for Bangla keywords
+    if (message.includes("বৃষ্টি") || message.toLowerCase().includes("rain")) {
+      type = "rain";
+      title = language === "bn" ? "বৃষ্টি সতর্কতা" : "Rain Alert";
+    } else if (message.includes("তাপমাত্রা") || message.toLowerCase().includes("heat") || message.toLowerCase().includes("temp")) {
+      type = "heat";
+      title = language === "bn" ? "তাপপ্রবাহ" : "Heatwave";
+    } else if (message.includes("আর্দ্রতা") || message.toLowerCase().includes("humidity")) {
+      type = "humidity";
+      title = language === "bn" ? "আর্দ্রতা বেশি" : "High Humidity";
+    } else {
+      type = "good";
+      title = language === "bn" ? "পরামর্শ" : "Advisory";
+    }
   } else {
-    type = "good";
-    title = language === "bn" ? "আবহাওয়া ভালো" : "Good Weather";
-    message = language === "bn" 
-      ? "এখন আবহাওয়া কৃষিকাজের অনুকূল।" 
-      : "Conditions are favorable.";
-    action = language === "bn" ? "আগাছা পরিষ্কার ও সার দিন।" : "Clear weeds & apply fertilizer.";
+    // Fallback to client-side generation for backward compatibility
+    const rainChance = weatherData.rainChance ?? 0;
+    const temp = weatherData.temperature ?? 30;
+    const humidity = weatherData.humidity ?? 60;
+
+    const dRain = language === "bn" ? toBanglaDigits(rainChance) : rainChance;
+    const dTemp = language === "bn" ? toBanglaDigits(temp) : temp;
+
+    if (rainChance > 70) {
+      type = "rain";
+      title = language === "bn" ? "বৃষ্টি সতর্কতা" : "Rain Alert";
+      message = language === "bn" 
+        ? `আগামী ৩ দিনে ${dRain}% বৃষ্টির সম্ভাবনা।` 
+        : `${rainChance}% rain chance ahead.`;
+      action = language === "bn" ? "পাকা ধান দ্রুত কেটে ঘরে তুলুন।" : "Harvest ripe paddy immediately.";
+    } else if (temp > 35) {
+      type = "heat";
+      title = language === "bn" ? "তাপপ্রবাহ" : "Heatwave";
+      message = language === "bn" 
+        ? `তাপমাত্রা ${dTemp}°C, যা ফসলের জন্য ঝুঁকিপূর্ণ।` 
+        : `High temp (${temp}°C) detected.`;
+      action = language === "bn" ? "বিকালে গাছের গোড়ায় পানি দিন।" : "Irrigate crop roots in afternoon.";
+    } else if (humidity > 85) {
+      type = "humidity";
+      title = language === "bn" ? "আর্দ্রতা বেশি" : "High Humidity";
+      message = language === "bn" 
+        ? "পোকা ও ছত্রাকের আক্রমণ হতে পারে।" 
+        : "Risk of pest & fungal attack.";
+      action = language === "bn" ? "নিয়মিত ক্ষেত পরিদর্শন করুন।" : "Monitor field for pests.";
+    } else {
+      type = "good";
+      title = language === "bn" ? "আবহাওয়া ভালো" : "Good Weather";
+      message = language === "bn" 
+        ? "এখন আবহাওয়া কৃষিকাজের অনুকূল।" 
+        : "Conditions are favorable.";
+      action = language === "bn" ? "আগাছা পরিষ্কার ও সার দিন।" : "Clear weeds & apply fertilizer.";
+    }
   }
 
   // Styles configuration
@@ -61,7 +122,8 @@ export default function AdvisoryCard({ weatherData }: AdvisoryCardProps) {
       icon: CloudLightning,
       actionBg: "bg-white/10 border-white/20",
       accent: "from-slate-700 to-slate-900",
-      pulse: true
+      pulse: true,
+      isLight: false
     },
     heat: {
       bg: "bg-amber-500 text-white",
@@ -69,7 +131,8 @@ export default function AdvisoryCard({ weatherData }: AdvisoryCardProps) {
       icon: Sun,
       actionBg: "bg-white/20 border-white/30",
       accent: "from-amber-400 to-orange-500",
-      pulse: true
+      pulse: true,
+      isLight: false
     },
     humidity: {
       bg: "bg-blue-600 text-white",
@@ -77,7 +140,8 @@ export default function AdvisoryCard({ weatherData }: AdvisoryCardProps) {
       icon: Droplets,
       actionBg: "bg-white/20 border-white/30",
       accent: "from-blue-500 to-indigo-600",
-      pulse: false
+      pulse: false,
+      isLight: false
     },
     good: {
       bg: "bg-white border-2 border-green-100",
@@ -93,6 +157,20 @@ export default function AdvisoryCard({ weatherData }: AdvisoryCardProps) {
   const style = config[type];
   const Icon = style.icon;
   const isLight = style.isLight;
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="relative overflow-hidden rounded-2xl p-5 shadow-sm bg-white border border-gray-200">
+        <div className="flex items-center justify-center gap-3 py-4">
+          <RefreshCw className="w-5 h-5 animate-spin text-gray-400" />
+          <p className="text-sm text-gray-500">
+            {language === "bn" ? "পরামর্শ লোড হচ্ছে..." : "Loading advisory..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn(
@@ -120,21 +198,23 @@ export default function AdvisoryCard({ weatherData }: AdvisoryCardProps) {
           </div>
         </div>
 
-        {/* Action Box */}
-        <div className={cn(
-          "flex items-start gap-3 p-3 rounded-xl border backdrop-blur-sm",
-          style.actionBg
-        )}>
-          <Megaphone className={cn("w-5 h-5 shrink-0 mt-0.5", isLight ? "text-green-600" : "text-white/90")} />
-          <div>
-            <p className={cn("text-xs font-bold uppercase tracking-wider mb-0.5 opacity-70", isLight ? "text-green-800" : "text-white")}>
-              {language === "bn" ? "পরামর্শ" : "Action"}
-            </p>
-            <p className={cn("text-sm font-semibold", isLight ? "text-gray-800" : "text-white")}>
-              {action}
-            </p>
+        {/* Action Box - only show if action exists */}
+        {action && (
+          <div className={cn(
+            "flex items-start gap-3 p-3 rounded-xl border backdrop-blur-sm",
+            style.actionBg
+          )}>
+            <Megaphone className={cn("w-5 h-5 shrink-0 mt-0.5", isLight ? "text-green-600" : "text-white/90")} />
+            <div>
+              <p className={cn("text-xs font-bold uppercase tracking-wider mb-0.5 opacity-70", isLight ? "text-green-800" : "text-white")}>
+                {language === "bn" ? "পরামর্শ" : "Action"}
+              </p>
+              <p className={cn("text-sm font-semibold", isLight ? "text-gray-800" : "text-white")}>
+                {action}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
