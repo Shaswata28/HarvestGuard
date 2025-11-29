@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import AdvisoryCard from "@/components/AdvisoryCard";
 import WeatherCard from "@/components/WeatherCard";
-import { mockWeatherData } from "@/data/mockData";
+import { mockWeatherData, storageTypes, getCropDisplay } from "@/data/mockData";
 import { Plus, Package, Sprout, Leaf, Stethoscope, ArrowRight, WifiOff, RefreshCw, Trash2, Edit } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -37,7 +37,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import WeightInput from "@/components/WeightInput";
-import { storageTypes } from "@/data/mockData";
 import { generateAdvisories } from "@/utils/advisoryGenerator";
 import { useAdvisoryNotifications } from "@/hooks/useAdvisoryNotifications";
 import { useHarvestReminders } from "@/hooks/useHarvestReminders";
@@ -695,18 +694,34 @@ function CropCard({ crop, language, t, onEdit, onDelete, onMarkHarvested }: {
   onDelete: (id: string) => void,
   onMarkHarvested: (crop: any) => void 
 }) {
-  const weight = crop.stage === "growing" ? crop.estimatedWeight : crop.finalWeight || 0;
+  // SAFEGUARD 1: Ensure weight is a valid number/string and not an object
+  const rawWeight = crop.stage === "growing" ? crop.estimatedWeight : crop.finalWeight;
+  const weight = (typeof rawWeight === 'number' || typeof rawWeight === 'string') ? rawWeight : 0;
+  
   const displayWeight = language === "bn" ? toBanglaDigits(weight) : weight;
+  
+  // SAFEGUARD 2: Fallback for missing crop types and potential undefined returns from getCropDisplay
   const cropDisplay = getCropDisplay(crop.cropType || "rice", language as 'bn' | 'en');
-  const type = cropDisplay.name;
-  const cropIcon = cropDisplay.icon;
+  const type = cropDisplay?.name || "Unknown Crop";
+  const cropIcon = cropDisplay?.icon || "🌱";
   
   const dateStr = crop.stage === "growing" ? crop.expectedHarvestDate : crop.actualHarvestDate;
   const dateLabel = crop.stage === "growing" ? (language === "bn" ? "সম্ভাব্য কাটা:" : "Expected:") : (language === "bn" ? "কাটা হয়েছে:" : "Harvested:");
 
-  const displayDate = dateStr 
-    ? new Date(dateStr).toLocaleDateString(language === "bn" ? "bn-BD" : "en-US", { day: 'numeric', month: 'long' }) 
-    : "-";
+  // SAFEGUARD 3: Robust Date Parsing
+  let displayDate = "-";
+  try {
+    if (dateStr) {
+      const dateObj = new Date(dateStr);
+      // Check if date is valid before formatting
+      if (!isNaN(dateObj.getTime())) {
+        displayDate = dateObj.toLocaleDateString(language === "bn" ? "bn-BD" : "en-US", { day: 'numeric', month: 'long' });
+      }
+    }
+  } catch (e) {
+    console.error("Date parsing error for crop:", crop.id, e);
+    displayDate = "Invalid Date";
+  }
   
   let riskLevel = "safe";
   if (crop.stage === "growing") riskLevel = "growing";
@@ -720,7 +735,7 @@ function CropCard({ crop, language, t, onEdit, onDelete, onMarkHarvested }: {
     growing: { label: language === "bn" ? "মাঠে আছে" : "Growing", bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-200" }
   };
 
-  const status = config[riskLevel as keyof typeof config];
+  const status = config[riskLevel as keyof typeof config] || config.safe;
 
   return (
     <motion.div 
