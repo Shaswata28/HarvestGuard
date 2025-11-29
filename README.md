@@ -33,7 +33,7 @@
 - **AI-Powered Disease Detection**: Upload crop images to diagnose issues via Google Gemini with confidence scores and treatment recommendations.
 - **Local Risk Map**: Interactive map showing anonymized risk indicators for nearby farms in your district, helping you understand regional threat patterns while protecting privacy.
 - **Context-Aware Advisories**: Intelligent recommendations that combine weather forecasts with your specific crop data (type, growth stage, harvest date) to provide actionable guidance in simple Bangla.
-- **AI Assistant**: Quick-access floating button for instant AI-powered farming assistance and crop advice.
+- **AI voice Assistant**: Quick-access floating button for instant AI-powered farming assistance and crop advice.
 - **Interactive Dashboard**: Visual analytics for yield, loss tracking, intervention success rates, and achievement badges.
 - **Bilingual Interface**: Complete English and Bengali (বাংলা) localization with simple language for easy comprehension.
 - **Offline-First PWA**: Fully functional Progressive Web App with automatic sync when connectivity returns.
