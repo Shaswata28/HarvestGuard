@@ -21,7 +21,7 @@ import { cacheService } from "@/services/cache";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import type { FarmerDashboardResponse } from "@shared/api";
 import { notificationService, NotificationPreferences } from "@/services/notificationService";
-import { Switch } from "@/components/ui/switch";
+import { Toggle } from "@/components/ui/toggle";
 import { Label } from "@/components/ui/label";
 
 export default function Profile() {
@@ -376,16 +376,17 @@ export default function Profile() {
                 {language === "bn" ? "রোগ শনাক্তকরণের বিজ্ঞপ্তি" : "Disease detection notifications"}
               </p>
             </div>
-            <Switch
-              id="scan-notifications"
-              checked={notificationPrefs.scanResults}
-              onCheckedChange={(checked) => {
-                const updated = { ...notificationPrefs, scanResults: checked };
+            <Toggle
+              pressed={notificationPrefs.scanResults}
+              onPressedChange={(pressed) => {
+                const updated = { ...notificationPrefs, scanResults: pressed };
                 setNotificationPrefs(updated);
-                notificationService.updatePreferences({ scanResults: checked });
+                notificationService.updatePreferences({ scanResults: pressed });
               }}
-              className="h-7 w-14 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
-            />
+              className="rounded-full h-9 px-4 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+            >
+              {notificationPrefs.scanResults ? (language === "bn" ? "চালু" : "ON") : (language === "bn" ? "বন্ধ" : "OFF")}
+            </Toggle>
           </div>
 
           <div className="flex items-center justify-between">
@@ -397,16 +398,17 @@ export default function Profile() {
                 {language === "bn" ? "দৈনিক অনুস্মারক" : "Daily reminders"}
               </p>
             </div>
-            <Switch
-              id="pending-notifications"
-              checked={notificationPrefs.pendingScans}
-              onCheckedChange={(checked) => {
-                const updated = { ...notificationPrefs, pendingScans: checked };
+            <Toggle
+              pressed={notificationPrefs.pendingScans}
+              onPressedChange={(pressed) => {
+                const updated = { ...notificationPrefs, pendingScans: pressed };
                 setNotificationPrefs(updated);
-                notificationService.updatePreferences({ pendingScans: checked });
+                notificationService.updatePreferences({ pendingScans: pressed });
               }}
-              className="h-7 w-14 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
-            />
+              className="rounded-full h-9 px-4 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+            >
+              {notificationPrefs.pendingScans ? (language === "bn" ? "চালু" : "ON") : (language === "bn" ? "বন্ধ" : "OFF")}
+            </Toggle>
           </div>
 
           <div className="flex items-center justify-between">
@@ -418,16 +420,17 @@ export default function Profile() {
                 {language === "bn" ? "জরুরি আবহাওয়া সতর্কতা" : "Urgent weather alerts"}
               </p>
             </div>
-            <Switch
-              id="advisory-notifications"
-              checked={notificationPrefs.weatherAdvisories}
-              onCheckedChange={(checked) => {
-                const updated = { ...notificationPrefs, weatherAdvisories: checked };
+            <Toggle
+              pressed={notificationPrefs.weatherAdvisories}
+              onPressedChange={(pressed) => {
+                const updated = { ...notificationPrefs, weatherAdvisories: pressed };
                 setNotificationPrefs(updated);
-                notificationService.updatePreferences({ weatherAdvisories: checked });
+                notificationService.updatePreferences({ weatherAdvisories: pressed });
               }}
-              className="h-7 w-14 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
-            />
+              className="rounded-full h-9 px-4 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+            >
+              {notificationPrefs.weatherAdvisories ? (language === "bn" ? "চালু" : "ON") : (language === "bn" ? "বন্ধ" : "OFF")}
+            </Toggle>
           </div>
 
           <div className="flex items-center justify-between">
@@ -439,16 +442,17 @@ export default function Profile() {
                 {language === "bn" ? "ফসল কাটার আগে সতর্কতা" : "Alerts before harvest"}
               </p>
             </div>
-            <Switch
-              id="harvest-notifications"
-              checked={notificationPrefs.harvestReminders}
-              onCheckedChange={(checked) => {
-                const updated = { ...notificationPrefs, harvestReminders: checked };
+            <Toggle
+              pressed={notificationPrefs.harvestReminders}
+              onPressedChange={(pressed) => {
+                const updated = { ...notificationPrefs, harvestReminders: pressed };
                 setNotificationPrefs(updated);
-                notificationService.updatePreferences({ harvestReminders: checked });
+                notificationService.updatePreferences({ harvestReminders: pressed });
               }}
-              className="h-7 w-14 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
-            />
+              className="rounded-full h-9 px-4 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+            >
+              {notificationPrefs.harvestReminders ? (language === "bn" ? "চালু" : "ON") : (language === "bn" ? "বন্ধ" : "OFF")}
+            </Toggle>
           </div>
         </div>
       </section>

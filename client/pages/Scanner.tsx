@@ -3,21 +3,25 @@ import { useLanguage } from "@/context/LangContext";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Camera, Image as ImageIcon, ScanLine, CheckCircle2, AlertTriangle, XCircle, ChevronRight, WifiOff, Loader2 } from "lucide-react";
+import { Camera, Image as ImageIcon, ScanLine, CheckCircle2, AlertTriangle, XCircle, ChevronRight, WifiOff, Loader2, Bug, Leaf } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { toBanglaDigits } from "@/lib/utils";
+import { toBanglaDigits, cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { AnalyzeScanResponse, CropBatchResponse } from "@shared/api";
 import { notificationService } from "@/services/notificationService";
+import { RiskLevelBadge } from "@/components/RiskLevelBadge";
+import { GroundingSources } from "@/components/GroundingSources";
 
 type ScanState = "idle" | "preview" | "analyzing" | "result";
+type ScanMode = "disease" | "pest";
 
 export default function Scanner() {
   const { language, t } = useLanguage();
-  const { farmerId, farmerData } = useAuth();
+  const { farmerId } = useAuth();
   const { toast } = useToast();
   const isOnline = useOnlineStatus();
+  const [scanMode, setScanMode] = useState<ScanMode>("disease");
   const [status, setStatus] = useState<ScanState>("idle");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -111,9 +115,11 @@ export default function Scanner() {
         formData.append("batchId", selectedBatch);
       }
 
-      console.log("Sending analysis request...");
+      // Route to appropriate endpoint based on scan mode
+      const endpoint = scanMode === "pest" ? "/api/scanner/analyze-pest" : "/api/scanner/analyze";
+      console.log(`Sending ${scanMode} analysis request...`);
       const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
-      const apiUrl = apiBaseUrl ? `${apiBaseUrl}/api/scanner/analyze` : '/api/scanner/analyze';
+      const apiUrl = apiBaseUrl ? `${apiBaseUrl}${endpoint}` : endpoint;
       
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -181,17 +187,43 @@ export default function Scanner() {
       )}
 
       {/* Header */}
-      <div className="text-center space-y-2 mb-8 z-10">
-        <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-1.5 rounded-full text-sm font-bold mb-2">
-          <ScanLine className="w-4 h-4" />
-          {t("scanner.title")}
+      <div className="w-full max-w-md space-y-4 mb-8 z-10">
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-1.5 rounded-full text-sm font-bold mb-3">
+            <ScanLine className="w-4 h-4" />
+            {t("scanner.title")}
+          </div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">
+            {language === "bn" ? "আপনার ধান কি সুস্থ?" : "Is your crop healthy?"}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {scanMode === "disease" ? t("scanner.subtitle_disease") : t("scanner.subtitle_pest")}
+          </p>
         </div>
-        <h1 className="text-2xl font-bold text-foreground">
-          {language === "bn" ? "আপনার ধান কি সুস্থ?" : "Is your crop healthy?"}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("scanner.subtitle")}
-        </p>
+        
+        {/* Mode Toggle - Simplified */}
+        <div className="flex p-1 bg-muted/50 rounded-xl">
+          <button 
+            onClick={() => setScanMode("disease")}
+            className={cn(
+              "flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2", 
+              scanMode === "disease" ? "bg-white shadow text-primary" : "text-muted-foreground"
+            )}
+          >
+            <Leaf className="w-4 h-4" />
+            {t("scanner.mode_disease")}
+          </button>
+          <button 
+            onClick={() => setScanMode("pest")}
+            className={cn(
+              "flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2", 
+              scanMode === "pest" ? "bg-white shadow text-primary" : "text-muted-foreground"
+            )}
+          >
+            <Bug className="w-4 h-4" />
+            {t("scanner.mode_pest")}
+          </button>
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -301,7 +333,7 @@ export default function Scanner() {
               <div className="absolute inset-0 flex flex-col items-center justify-center z-30">
                 <Loader2 className="w-16 h-16 text-white animate-spin mb-4" />
                 <p className="text-white font-bold text-lg">
-                  {t("scanner.analyzing")}
+                  {scanMode === "pest" ? t("scanner.analyzing_pest") : t("scanner.analyzing")}
                 </p>
               </div>
             </motion.div>
@@ -339,7 +371,17 @@ export default function Scanner() {
 function ResultCard({ result, language }: { result: AnalyzeScanResponse; language: string }) {
   const { analysis } = result;
   const isHealthy = analysis.overallHealth === "healthy";
+  const isPestScan = analysis.scanType === "pest";
+  
+  // For pest scans, use pest data; for disease scans, use disease data
   const primaryDisease = analysis.diseases[0];
+  const primaryPest = analysis.pests?.[0];
+  
+  const displayName = isPestScan 
+    ? (primaryPest?.pestName || (language === "bn" ? "কোন পোকা নেই" : "No pests detected"))
+    : (primaryDisease?.name || (language === "bn" ? "সুস্থ ফসল" : "Healthy Crop"));
+  
+  const confidence = isPestScan ? primaryPest?.confidence : primaryDisease?.confidence;
 
   const Icon = isHealthy ? CheckCircle2 : analysis.overallHealth === "major_issues" ? XCircle : AlertTriangle;
   const colorClass = isHealthy ? "green" : analysis.overallHealth === "major_issues" ? "red" : "amber";
@@ -351,12 +393,27 @@ function ResultCard({ result, language }: { result: AnalyzeScanResponse; languag
           <Icon className="w-12 h-12" />
         </div>
         <h2 className={`text-3xl font-bold text-${colorClass}-800 mb-1`}>
-          {primaryDisease?.name || (language === "bn" ? "সুস্থ ফসল" : "Healthy Crop")}
+          {displayName}
         </h2>
-        {primaryDisease && (
+        
+        {/* Scientific Name for Pests */}
+        {isPestScan && primaryPest && (
+          <p className="text-sm text-muted-foreground italic mb-2">
+            {primaryPest.scientificName}
+          </p>
+        )}
+        
+        {/* Risk Level Badge */}
+        {analysis.riskLevel && (
+          <div className="mb-2">
+            <RiskLevelBadge riskLevel={analysis.riskLevel} language={language} size="lg" />
+          </div>
+        )}
+        
+        {confidence && (
           <div className="inline-flex items-center gap-1 px-3 py-1 bg-white/60 rounded-full text-xs font-bold text-muted-foreground">
             <span>{language === "bn" ? "নিশ্চিততা" : "Confidence"}:</span>
-            <span>{language === "bn" ? toBanglaDigits(primaryDisease.confidence) : primaryDisease.confidence}%</span>
+            <span>{language === "bn" ? toBanglaDigits(confidence) : confidence}%</span>
           </div>
         )}
       </div>
@@ -375,6 +432,11 @@ function ResultCard({ result, language }: { result: AnalyzeScanResponse; languag
             </div>
           ))}
         </div>
+      )}
+
+      {/* Grounding Sources */}
+      {analysis.groundingSources && analysis.groundingSources.length > 0 && (
+        <GroundingSources sources={analysis.groundingSources} language={language} />
       )}
     </div>
   );

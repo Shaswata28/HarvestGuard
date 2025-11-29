@@ -2,20 +2,23 @@ import { useState, useEffect } from "react";
 import { useLanguage } from "@/context/LangContext";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Stethoscope, Clock, CheckCircle2, AlertTriangle, Calendar, Loader2 } from "lucide-react";
+import { ArrowLeft, Stethoscope, Clock, CheckCircle2, AlertTriangle, Calendar, Loader2, Bug, Activity } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toBanglaDigits, cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { HealthScanResponse } from "@shared/api";
+import { RiskLevelBadge } from "@/components/RiskLevelBadge";
+import { GroundingSources } from "@/components/GroundingSources";
 
 export default function HealthJournal() {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const { toast } = useToast();
   const { farmerId } = useAuth();
   const [scans, setScans] = useState<HealthScanResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "pending">("all");
+  const [scanTypeFilter, setScanTypeFilter] = useState<"all" | "disease" | "pest">("all");
 
   useEffect(() => {
     if (farmerId) {
@@ -76,11 +79,20 @@ export default function HealthJournal() {
   };
 
   const filteredScans = scans.filter(s => {
+    // Apply status filter
     if (filter === "pending") {
       const isHealthy = s.diseaseLabel?.toLowerCase().includes('healthy') || 
                        s.diseaseLabel?.toLowerCase().includes('সুস্থ');
-      return !s.outcome && !isHealthy;
+      if (s.outcome || isHealthy) return false;
     }
+    
+    // Apply scan type filter
+    if (scanTypeFilter === "disease") {
+      return !s.scanType || s.scanType === "disease";
+    } else if (scanTypeFilter === "pest") {
+      return s.scanType === "pest";
+    }
+    
     return true;
   });
 
@@ -104,7 +116,7 @@ export default function HealthJournal() {
         </div>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Status Filter Tabs */}
       <div className="flex p-1 bg-muted/50 rounded-xl">
         <button 
             onClick={() => setFilter("all")}
@@ -123,6 +135,37 @@ export default function HealthJournal() {
             )}
         >
             {language === "bn" ? "অমীমাংসিত" : "Pending Action"}
+        </button>
+      </div>
+
+      {/* Scan Type Filter Tabs */}
+      <div className="flex p-1 bg-muted/50 rounded-xl">
+        <button 
+            onClick={() => setScanTypeFilter("all")}
+            className={cn(
+                "flex-1 py-2 text-sm font-bold rounded-lg transition-all", 
+                scanTypeFilter === "all" ? "bg-white shadow text-primary" : "text-muted-foreground"
+            )}
+        >
+            {language === "bn" ? "সব" : "All"}
+        </button>
+        <button 
+            onClick={() => setScanTypeFilter("disease")}
+            className={cn(
+                "flex-1 py-2 text-sm font-bold rounded-lg transition-all", 
+                scanTypeFilter === "disease" ? "bg-white shadow text-primary" : "text-muted-foreground"
+            )}
+        >
+            {language === "bn" ? "রোগ" : "Diseases"}
+        </button>
+        <button 
+            onClick={() => setScanTypeFilter("pest")}
+            className={cn(
+                "flex-1 py-2 text-sm font-bold rounded-lg transition-all", 
+                scanTypeFilter === "pest" ? "bg-white shadow text-primary" : "text-muted-foreground"
+            )}
+        >
+            {language === "bn" ? "পোকামাকড়" : "Pests"}
         </button>
       </div>
 
@@ -161,6 +204,10 @@ function JournalCard({ scan, language, onFeedback }: { scan: HealthScanResponse,
     // Status Logic
     const isPending = !scan.outcome && !isHealthy;
     const isRecovered = scan.outcome === "recovered";
+    
+    // Scan type
+    const scanType = scan.scanType || 'disease';
+    const isPestScan = scanType === 'pest';
 
     return (
         <motion.div 
@@ -172,9 +219,24 @@ function JournalCard({ scan, language, onFeedback }: { scan: HealthScanResponse,
             )}
         >
             <div className="flex flex-wrap justify-between items-start mb-3 gap-2">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium bg-gray-50 px-2 py-1 rounded-md w-fit">
-                    <Calendar className="w-3 h-3" />
-                    {date}
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium bg-gray-50 px-2 py-1 rounded-md w-fit">
+                        <Calendar className="w-3 h-3" />
+                        {date}
+                    </div>
+                    {/* Scan Type Badge */}
+                    <span className={cn(
+                        "text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1",
+                        isPestScan 
+                            ? "text-amber-700 bg-amber-50 border border-amber-200" 
+                            : "text-blue-700 bg-blue-50 border border-blue-200"
+                    )}>
+                        {isPestScan ? <Bug className="w-3 h-3" /> : <Activity className="w-3 h-3" />}
+                        {isPestScan 
+                            ? (language === "bn" ? "পোকামাকড়" : "Pest") 
+                            : (language === "bn" ? "রোগ" : "Disease")
+                        }
+                    </span>
                 </div>
                 {/* Status Badge */}
                 {isHealthy ? (
@@ -195,7 +257,13 @@ function JournalCard({ scan, language, onFeedback }: { scan: HealthScanResponse,
                 )}
             </div>
 
-            <h3 className="text-lg font-bold text-foreground mb-1">{scan.diseaseLabel}</h3>
+            <div className="flex items-start justify-between gap-2 mb-2">
+                <h3 className="text-lg font-bold text-foreground">{scan.diseaseLabel}</h3>
+                {/* Risk Level Badge */}
+                {scan.riskLevel && (
+                    <RiskLevelBadge riskLevel={scan.riskLevel} language={language} size="sm" />
+                )}
+            </div>
             
             {scan.confidence && (
                 <p className="text-xs text-muted-foreground mb-2">
@@ -209,6 +277,13 @@ function JournalCard({ scan, language, onFeedback }: { scan: HealthScanResponse,
                     <span className="font-semibold">{language === "bn" ? "পরামর্শ: " : "Remedy: "}</span>
                     {scan.remedyText}
                 </p>
+            )}
+
+            {/* Grounding Sources */}
+            {scan.groundingSources && scan.groundingSources.length > 0 && (
+                <div className="mb-4">
+                    <GroundingSources sources={scan.groundingSources} language={language} />
+                </div>
             )}
 
             {/* Action Buttons for Pending Items */}

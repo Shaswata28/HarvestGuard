@@ -139,9 +139,14 @@ export const strings = {
     scanner: {
       title: "ফসল ডাক্তার",
       subtitle: "পাতার ছবি তুলে রোগ যাচাই করুন",
+      mode_disease: "রোগ শনাক্তকরণ",
+      mode_pest: "পোকা শনাক্তকরণ",
+      subtitle_disease: "পাতার ছবি তুলে রোগ যাচাই করুন",
+      subtitle_pest: "পোকার ছবি তুলে শনাক্ত করুন",
       camera_btn: "ছবি তুলুন",
       gallery_btn: "গ্যালারি",
       analyzing: "যাচাই করা হচ্ছে...",
+      analyzing_pest: "পোকা শনাক্ত করা হচ্ছে...",
       scan_again: "আবার দেখুন",
       
       result_healthy: "সুস্থ ধান",
@@ -157,6 +162,17 @@ export const strings = {
       action_brown_spot: "পটাশ সার ব্যবহার করুন এবং জমিতে পানি ধরে রাখুন।",
       
       accuracy: "সঠিকতা",
+      confidence: "নিশ্চিততা",
+      pest_name: "পোকার নাম",
+      scientific_name: "বৈজ্ঞানিক নাম",
+      risk_level: "ঝুঁকি স্তর",
+      risk_high: "উচ্চ",
+      risk_medium: "মাধ্যম",
+      risk_low: "নিম্ন",
+      no_pests_detected: "কোন পোকা নেই",
+      recommendations: "সুপারিশ",
+      preventive_measures: "প্রতিরোধমূলক ব্যবস্থা",
+      learn_more: "আরও জানুন",
     },
 
     weather: {
@@ -373,9 +389,14 @@ export const strings = {
     scanner: {
       title: "Crop Doctor",
       subtitle: "Scan leaf to check health",
+      mode_disease: "Disease Scanner",
+      mode_pest: "Pest Scanner",
+      subtitle_disease: "Scan leaf to check for diseases",
+      subtitle_pest: "Scan to identify pests",
       camera_btn: "Camera",
       gallery_btn: "Gallery",
       analyzing: "Analyzing...",
+      analyzing_pest: "Identifying pest...",
       scan_again: "Scan Again",
       
       result_healthy: "Healthy Paddy",
@@ -391,6 +412,17 @@ export const strings = {
       action_brown_spot: "Apply Potash & maintain water.",
       
       accuracy: "Accuracy",
+      confidence: "Confidence",
+      pest_name: "Pest Name",
+      scientific_name: "Scientific Name",
+      risk_level: "Risk Level",
+      risk_high: "High",
+      risk_medium: "Medium",
+      risk_low: "Low",
+      no_pests_detected: "No pests detected",
+      recommendations: "Recommendations",
+      preventive_measures: "Preventive Measures",
+      learn_more: "Learn More",
     },
 
     weather: { title: "Weather", select_upazila: "Area", temperature: "Temp", rain_chance: "Rain", humidity: "Hum", wind_speed: "Wind", high_rain: "Rain Alert", high_temp: "Heat Alert", safe_conditions: "Safe" },
