@@ -21,6 +21,7 @@ import {
   CropContext,
   WeatherRiskData
 } from '../utils/banglaAdvisoryGenerator';
+import { SmartAlertService } from './smartAlert.service';
 
 /**
  * Weather Advisory Generation Service
@@ -30,7 +31,8 @@ export class WeatherAdvisoryService {
     private advisoryService: AdvisoryService,
     private advisoriesRepository: AdvisoriesRepository,
     private farmersRepository: FarmersRepository,
-    private cropBatchesRepository: CropBatchesRepository
+    private cropBatchesRepository: CropBatchesRepository,
+    private smartAlertService?: SmartAlertService
   ) {}
 
   /**
@@ -83,6 +85,28 @@ export class WeatherAdvisoryService {
       });
 
       console.log(`✓ Created weather advisory for farmer ${farmerId}`);
+
+      // Generate smart alerts alongside weather advisories
+      if (this.smartAlertService) {
+        try {
+          console.log(`Generating smart alerts for farmer ${farmerId}`);
+          
+          const smartAlerts = await this.smartAlertService.generateAlertsForFarmer(
+            farmerId,
+            weather
+          );
+
+          // Store smart alerts as advisories
+          const smartAlertCount = await this.smartAlertService.storeAlertsAsAdvisories(smartAlerts);
+          
+          console.log(`✓ Created ${smartAlertCount} smart alert advisories for farmer ${farmerId}`);
+        } catch (error) {
+          // Log error but don't fail the entire operation
+          logError(error as Error, 'WeatherAdvisoryService.generateForFarmer - Smart Alerts');
+          console.warn('Smart alert generation failed, continuing with weather advisories');
+        }
+      }
+
       return [createdAdvisory];
     } catch (error) {
       logError(error as Error, 'WeatherAdvisoryService.generateForFarmer');

@@ -5,3 +5,4 @@ export * from './healthScan.service';
 export * from './advisory.service';
 export * from './weather.service';
 export * from './gemini.service';
+export * from './smartAlert.service';

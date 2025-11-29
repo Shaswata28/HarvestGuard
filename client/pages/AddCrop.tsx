@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/context/LangContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,11 +14,16 @@ import {
   ArrowLeft, 
   Calendar as CalendarIcon, 
   Warehouse,
-  Tractor
+  Tractor,
+  Search,
+  X,
+  History
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { storageTypes } from "@/data/mockData";
+import { storageTypes, cropTypes } from "@/data/mockData";
 import WeightInput from "@/components/WeightInput";
+import { strings } from "@/locales/strings";
+import { fetchCropHistory, sortCropTypesByHistory, type CropHistory } from "@/utils/cropHistory";
 
 export default function AddCrop() {
   const { language, t } = useLanguage();
@@ -33,10 +38,34 @@ export default function AddCrop() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Form Data
+  const [cropType, setCropType] = useState("");
   const [weight, setWeight] = useState("");
   const [unit, setUnit] = useState<"kg" | "mon">("kg");
   const [date, setDate] = useState("");
   const [storageType, setStorageType] = useState(""); // e.g., Silo, Jute Bag
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  // Crop History
+  const [cropHistory, setCropHistory] = useState<CropHistory | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  // Fetch crop history when component mounts
+  useEffect(() => {
+    if (farmerId && isOnline) {
+      setIsLoadingHistory(true);
+      fetchCropHistory(farmerId)
+        .then((history) => {
+          setCropHistory(history);
+        })
+        .catch((error) => {
+          console.error('Failed to fetch crop history:', error);
+          // Continue without history - not critical
+        })
+        .finally(() => {
+          setIsLoadingHistory(false);
+        });
+    }
+  }, [farmerId, isOnline]);
 
   const handleStageSelect = (selected: "growing" | "harvested") => {
     setStage(selected);
@@ -52,16 +81,52 @@ export default function AddCrop() {
     setDate(d.toISOString().split('T')[0]);
   };
 
+  // Filter and sort crops based on search query and history
+  const filteredCrops = (() => {
+    // First, filter by search query
+    let filtered = cropTypes.filter(crop => {
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        crop.label_bn.toLowerCase().includes(query) ||
+        crop.label_en.toLowerCase().includes(query)
+      );
+    });
+
+    // Then, sort by history if available
+    if (cropHistory && cropHistory.uniqueCropTypes.length > 0) {
+      const cropIds = filtered.map(c => c.id);
+      const sortedIds = sortCropTypesByHistory(cropIds, cropHistory);
+      filtered = sortedIds.map(id => filtered.find(c => c.id === id)!).filter(Boolean);
+    }
+
+    return filtered;
+  })();
+
+  // Clear search functionality
+  const clearSearch = () => {
+    setSearchQuery("");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Basic Validation
+    // 1. Crop Type Validation
+    if (!cropType) {
+      toast({ 
+        title: language === "bn" ? "ফসল নির্বাচন করুন" : "Select crop type", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    // 2. Basic Validation
     if (!weight || !date) {
       toast({ title: language === "bn" ? "ওজন এবং তারিখ দিন" : "Weight and Date required", variant: "destructive" });
       return;
     }
 
-    // 2. Harvesting Specific Validation - Only check storage type now
+    // 3. Harvesting Specific Validation - Only check storage type now
     if (stage === "harvested") {
       if (!storageType) {
         toast({ title: language === "bn" ? "সংরক্ষণের ধরন নির্বাচন করুন" : "Select storage type", variant: "destructive" });
@@ -86,7 +151,7 @@ export default function AddCrop() {
     // Build CreateCropBatchRequest payload
     const cropData: CreateCropBatchRequest = {
       farmerId: farmerId,
-      cropType: "ধান",
+      cropType: cropType,
       stage: stage,
     };
 
@@ -212,13 +277,79 @@ export default function AddCrop() {
 
       <form onSubmit={handleSubmit} className="space-y-8 animate-in slide-in-from-right-8 duration-300">
         
-        {/* 1. Crop Type */}
+        {/* 1. Crop Type Selection */}
         <div className="space-y-2">
           <Label text={t("crop.crop_type")} icon={<Sprout className="w-4 h-4" />} />
-          <div className="p-4 bg-primary/5 rounded-2xl border-2 border-primary/20 flex items-center gap-3 text-primary">
-            <span className="text-2xl">🌾</span>
-            <span className="font-bold text-lg">{t("crop.rice")}</span>
+          
+          {/* Search Input - Only show if more than 10 crops */}
+          {cropTypes.length > 10 && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={language === "bn" ? t("crop.search_crop") : strings.en.crop.search_crop}
+                className="pl-10 pr-10 h-12 rounded-xl border-2 focus:border-primary"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors"
+                  aria-label="Clear search"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            {filteredCrops.map((crop) => {
+              const hasUsedBefore = cropHistory?.uniqueCropTypes.includes(crop.id);
+              const usageCount = cropHistory?.cropUsageStats.find(s => s.cropType === crop.id)?.count;
+              
+              return (
+                <button
+                  key={crop.id}
+                  type="button"
+                  onClick={() => setCropType(crop.id)}
+                  className={`p-3 rounded-xl border-2 text-left transition-all flex flex-col gap-1 relative ${
+                    cropType === crop.id 
+                      ? "border-primary bg-primary/5 ring-1 ring-primary" 
+                      : hasUsedBefore
+                      ? "border-green-200 bg-green-50/50 hover:border-primary/50"
+                      : "border-muted bg-white hover:border-primary/50"
+                  }`}
+                >
+                  {hasUsedBefore && (
+                    <div className="absolute top-2 right-2 flex items-center gap-1">
+                      <History className="w-3 h-3 text-green-600" />
+                      {usageCount && usageCount > 1 && (
+                        <span className="text-[10px] font-bold text-green-600">
+                          {usageCount}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <div className="text-2xl">{crop.icon}</div>
+                  <div className="font-bold text-sm text-foreground">
+                    {language === "bn" ? crop.label_bn : crop.label_en}
+                  </div>
+                </button>
+              );
+            })}
           </div>
+
+          {/* No results message */}
+          {filteredCrops.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="text-sm">
+                {language === "bn" ? "কোন ফসল পাওয়া যায়নি" : "No crops found"}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* 2. Weight Input */}

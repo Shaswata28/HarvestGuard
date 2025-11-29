@@ -1,242 +1,327 @@
-import { useLanguage } from "@/context/LangContext";
-import { useAuth } from "@/context/AuthContext";
-import { CloudLightning, Sun, Droplets, Megaphone, RefreshCw } from "lucide-react";
-import { WeatherData } from "@/data/mockData";
-import { toBanglaDigits, cn } from "@/lib/utils";
-import { apiService } from "@/services/api";
-import { useState, useEffect } from "react";
-import type { AdvisoryResponse } from "@shared/api";
+/**
+ * AI Assistant Component (Responsive Desktop & Mobile Version)
+ * * Updates:
+ * - Added md: and lg: breakpoints for container width/height.
+ * - refined typography for larger screens.
+ * - improved backdrop blur and shadow handling for desktop contexts.
+ */
 
-interface AdvisoryCardProps {
-  weatherData: WeatherData;
+import React, { useState, useEffect, useRef } from 'react';
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Mic, Send, X, MessageSquare, StopCircle, Sparkles, User, Bot } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface IWindow extends Window {
+  webkitSpeechRecognition: any;
+  SpeechRecognition: any;
 }
 
-export default function AdvisoryCard({ weatherData }: AdvisoryCardProps) {
-  const { language } = useLanguage();
-  const { farmerId, isOnline } = useAuth();
-  const [advisories, setAdvisories] = useState<AdvisoryResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Fetch advisories from backend
-  useEffect(() => {
-    const fetchAdvisories = async () => {
-      if (!farmerId || !isOnline) {
-        return;
-      }
-
-      setIsLoading(true);
-
-      try {
-        const fetchedAdvisories = await apiService.fetchAdvisories(farmerId, {
-          source: 'weather',
-          limit: 1, // Get the most recent advisory
-        });
-        setAdvisories(fetchedAdvisories);
-      } catch (err) {
-        console.error('Failed to fetch advisories:', err);
-        // Fall back to client-side generation on error
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAdvisories();
-  }, [farmerId, isOnline]);
-
-  // Determine advisory content
-  let type: "rain" | "heat" | "humidity" | "good" = "good";
-  let title = "";
-  let message = "";
-  let action = "";
-
-  // Use backend advisory if available and it's a weather warning
-  let hasWeatherWarning = false;
-  if (advisories.length > 0 && advisories[0].payload.message) {
-    const advisory = advisories[0];
-    const advisoryMessage = advisory.payload.message;
-    
-    // Check if this is a weather warning (not a broadcast message)
-    const isWeatherWarning = 
-      advisoryMessage.includes("বৃষ্টি") || advisoryMessage.toLowerCase().includes("rain") ||
-      advisoryMessage.includes("তাপমাত্রা") || advisoryMessage.toLowerCase().includes("heat") || advisoryMessage.toLowerCase().includes("temp") ||
-      advisoryMessage.includes("আর্দ্রতা") || advisoryMessage.toLowerCase().includes("humidity");
-
-    if (isWeatherWarning) {
-      hasWeatherWarning = true;
-      message = advisoryMessage;
-      
-      // Extract actions if available
-      if (advisory.payload.actions && advisory.payload.actions.length > 0) {
-        action = advisory.payload.actions.join(", ");
-      }
-
-      // Determine type and title from message content
-      if (message.includes("বৃষ্টি") || message.toLowerCase().includes("rain")) {
-        type = "rain";
-        title = language === "bn" ? "বৃষ্টি সতর্কতা" : "Rain Alert";
-      } else if (message.includes("তাপমাত্রা") || message.toLowerCase().includes("heat") || message.toLowerCase().includes("temp")) {
-        type = "heat";
-        title = language === "bn" ? "তাপপ্রবাহ" : "Heatwave";
-      } else if (message.includes("আর্দ্রতা") || message.toLowerCase().includes("humidity")) {
-        type = "humidity";
-        title = language === "bn" ? "আর্দ্রতা বেশি" : "High Humidity";
-      }
-    }
-  }
+const AIAssistant = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<{ text: string; isUser: boolean }[]>([]);
+  const [inputText, setInputText] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isThinking, setIsThinking] = useState(false); 
+  const [error, setError] = useState<string | null>(null);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   
-  // Fallback to client-side generation if no weather warning from backend
-  if (!hasWeatherWarning) {
-    // Fallback to client-side generation for backward compatibility
-    const rainChance = weatherData.rainChance ?? 0;
-    const temp = weatherData.temperature ?? 30;
-    const humidity = weatherData.humidity ?? 60;
+  const recognitionRef = useRef<any>(null);
+  const synth = window.speechSynthesis;
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const dRain = language === "bn" ? toBanglaDigits(rainChance) : rainChance;
-    const dTemp = language === "bn" ? toBanglaDigits(temp) : temp;
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isThinking]);
 
-    if (rainChance > 70) {
-      type = "rain";
-      title = language === "bn" ? "বৃষ্টি সতর্কতা" : "Rain Alert";
-      message = language === "bn" 
-        ? `আগামী ৩ দিনে ${dRain}% বৃষ্টির সম্ভাবনা।` 
-        : `${rainChance}% rain chance ahead.`;
-      action = language === "bn" ? "পাকা ধান দ্রুত কেটে ঘরে তুলুন।" : "Harvest ripe paddy immediately.";
-    } else if (temp > 35) {
-      type = "heat";
-      title = language === "bn" ? "তাপপ্রবাহ" : "Heatwave";
-      message = language === "bn" 
-        ? `তাপমাত্রা ${dTemp}°C, যা ফসলের জন্য ঝুঁকিপূর্ণ।` 
-        : `High temp (${temp}°C) detected.`;
-      action = language === "bn" ? "বিকালে গাছের গোড়ায় পানি দিন।" : "Irrigate crop roots in afternoon.";
-    } else if (humidity > 85) {
-      type = "humidity";
-      title = language === "bn" ? "আর্দ্রতা বেশি" : "High Humidity";
-      message = language === "bn" 
-        ? "পোকা ও ছত্রাকের আক্রমণ হতে পারে।" 
-        : "Risk of pest & fungal attack.";
-      action = language === "bn" ? "নিয়মিত ক্ষেত পরিদর্শন করুন।" : "Monitor field for pests.";
+  useEffect(() => {
+    const loadVoices = () => {
+      const availableVoices = synth.getVoices();
+      setVoices(availableVoices);
+    };
+    loadVoices();
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
+
+  useEffect(() => {
+    const { webkitSpeechRecognition, SpeechRecognition } = window as unknown as IWindow;
+    const SpeechRecognitionAPI = SpeechRecognition || webkitSpeechRecognition;
+
+    if (SpeechRecognitionAPI) {
+      recognitionRef.current = new SpeechRecognitionAPI();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'bn-BD';
+
+      recognitionRef.current.onstart = () => {
+        setIsListening(true);
+        setError(null);
+      };
+
+      recognitionRef.current.onend = () => setIsListening(false);
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        handleUserQuery(transcript);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        setIsListening(false);
+        if (event.error === 'not-allowed') {
+          setError('মাইক্রোফোন অনুমতি দিন');
+        } else {
+          setError('আবার চেষ্টা করুন');
+        }
+      };
+    }
+  }, []);
+
+  const speak = (text: string) => {
+    if (synth.speaking) {
+      synth.cancel();
+    }
+    if (!text) {
+      setIsSpeaking(false);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    let selectedVoice = voices.find(v => v.lang.includes('bn') && v.name.includes('Google'));
+    if (!selectedVoice) selectedVoice = voices.find(v => v.lang === 'bn-BD');
+    if (!selectedVoice) selectedVoice = voices.find(v => v.lang.includes('bn'));
+
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+      utterance.lang = selectedVoice.lang;
     } else {
-      type = "good";
-      title = language === "bn" ? "আবহাওয়া ভালো" : "Good Weather";
-      message = language === "bn" 
-        ? "কৃষিকাজের জন্য আবহাওয়া ভালো।" 
-        : "Weather is good for farming.";
-      action = language === "bn" ? "আগাছা পরিষ্কার ও সার দিন।" : "Clear weeds & apply fertilizer.";
+      utterance.lang = 'bn-BD';
     }
-  }
 
-  // Styles configuration
-  const config = {
-    rain: {
-      bg: "bg-slate-800 text-white",
-      iconBox: "bg-white/20 text-white",
-      icon: CloudLightning,
-      actionBg: "bg-white/10 border-white/20",
-      accent: "from-slate-700 to-slate-900",
-      pulse: true,
-      isLight: false
-    },
-    heat: {
-      bg: "bg-amber-500 text-white",
-      iconBox: "bg-white/20 text-white",
-      icon: Sun,
-      actionBg: "bg-white/20 border-white/30",
-      accent: "from-amber-400 to-orange-500",
-      pulse: true,
-      isLight: false
-    },
-    humidity: {
-      bg: "bg-blue-600 text-white",
-      iconBox: "bg-white/20 text-white",
-      icon: Droplets,
-      actionBg: "bg-white/20 border-white/30",
-      accent: "from-blue-500 to-indigo-600",
-      pulse: false,
-      isLight: false
-    },
-    good: {
-      bg: "bg-white border-2 border-green-100",
-      iconBox: "bg-green-100 text-green-600",
-      icon: CheckCircleIcon,
-      actionBg: "bg-green-50 border-green-100 text-green-900",
-      accent: "", // No gradient for good weather, keep it clean
-      pulse: false,
-      isLight: true
-    }
+    utterance.rate = 1.0;
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    
+    synth.speak(utterance);
   };
 
-  const style = config[type];
-  const Icon = style.icon;
-  const isLight = style.isLight;
+  const handleUserQuery = async (query: string) => {
+    if (!query.trim()) return;
 
-  // Show loading state
-  if (isLoading) {
+    setMessages(prev => [...prev, { text: query, isUser: true }]);
+    setInputText('');
+    setIsThinking(true); 
+
+    let responseText = '';
+    const normalized = query.toLowerCase().trim();
+
+    if (normalized.includes('আবহাওয়া') || normalized.includes('weather')) {
+      responseText = 'আজকের আকাশ পরিষ্কার। তাপমাত্রা ৩০ ডিগ্রি সেলসিয়াস।';
+    } else if (normalized.includes('ধান') || normalized.includes('crop')) {
+      responseText = 'আপনার ধান এখন পাকার পর্যায়ে আছে। পোকার আক্রমণ নেই।';
+    } else if (normalized.includes('গুদাম') || normalized.includes('storage')) {
+      responseText = 'গুদামে আর্দ্রতা কম রাখুন এবং মাচা ব্যবহার করুন।';
+    } else if (normalized.includes('কাটব') || normalized.includes('harvest')) {
+      responseText = 'আগামী ৭-১০ দিনের মধ্যে ধান কাটার উপযুক্ত সময়।';
+    } else {
+      responseText = 'দুঃখিত, আমি এই প্রশ্নের উত্তর জানি না। তবে আমি শিখছি।';
+    }
+
+    setTimeout(() => {
+      setIsThinking(false);
+      setMessages(prev => [...prev, { text: responseText, isUser: false }]);
+      speak(responseText);
+    }, 1000);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleUserQuery(inputText);
+  };
+
+  // Floating Button (Collapsed State)
+  if (!isOpen) {
     return (
-      <div className="relative overflow-hidden rounded-2xl p-5 shadow-sm bg-white border border-gray-200">
-        <div className="flex items-center justify-center gap-3 py-4">
-          <RefreshCw className="w-5 h-5 animate-spin text-gray-400" />
-          <p className="text-sm text-gray-500">
-            {language === "bn" ? "পরামর্শ লোড হচ্ছে..." : "Loading advisory..."}
-          </p>
-        </div>
-      </div>
+      <Button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 md:bottom-10 md:right-10 h-14 w-14 md:h-16 md:w-16 rounded-full shadow-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:scale-110 hover:shadow-green-500/50 transition-all duration-300 z-50 animate-in zoom-in"
+      >
+        <MessageSquare className="h-7 w-7 md:h-8 md:w-8 fill-current" />
+      </Button>
     );
   }
 
+  // Expanded Chat Interface
   return (
-    <div className={cn(
-      "relative overflow-hidden rounded-2xl p-5 shadow-sm transition-all",
-      style.accent ? `bg-gradient-to-br ${style.accent} text-white border-none` : style.bg
+    <Card className={cn(
+      "fixed z-50 flex flex-col border-white/20 backdrop-blur-xl bg-white/95 shadow-2xl overflow-hidden ring-1 ring-black/5 rounded-2xl animate-in slide-in-from-bottom-10 fade-in duration-300",
+      // Mobile positioning & Sizing
+      "bottom-4 right-4 w-[calc(100vw-32px)] max-w-[380px] h-[550px]", 
+      // Tablet positioning & Sizing
+      "md:bottom-8 md:right-8 md:w-[450px] md:h-[650px]",
+      // Desktop positioning & Sizing (Large screens)
+      "lg:w-[480px] lg:h-[700px] lg:bottom-10 lg:right-10"
     )}>
-      {/* Decorative pulse for alerts */}
-      {style.pulse && (
-        <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/20 rounded-full blur-2xl animate-pulse" />
-      )}
-
-      <div className="relative z-10 flex flex-col gap-4">
-        {/* Header Section */}
+      
+      {/* Header */}
+      <div className="p-4 md:p-5 bg-gradient-to-r from-green-600 to-emerald-600 text-white flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3">
-          <div className={cn("p-2.5 rounded-xl backdrop-blur-md", style.iconBox)}>
-            <Icon className="w-6 h-6" />
+          <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+            <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-yellow-200" />
           </div>
           <div>
-            <h3 className={cn("font-bold text-lg leading-tight", isLight ? "text-gray-900" : "text-white")}>
-              {title}
-            </h3>
-            <p className={cn("text-xs font-medium opacity-90", isLight ? "text-gray-500" : "text-white/80")}>
-              {message}
-            </p>
+            <h3 className="font-bold text-base md:text-lg leading-none">কৃষি সহকারী</h3>
+            <p className="text-[10px] md:text-xs text-green-100 opacity-90 mt-1">আপনার ব্যক্তিগত এআই বিশেষজ্ঞ</p>
           </div>
         </div>
+        <button 
+          onClick={() => setIsOpen(false)} 
+          className="h-8 w-8 md:h-10 md:w-10 text-white bg-white/10 hover:bg-white/20 rounded-full transition-colors flex items-center justify-center"
+        >
+          <X className="h-5 w-5 md:h-6 md:w-6" />
+        </button>
+      </div>
 
-        {/* Action Box - only show if action exists */}
-        {action && (
-          <div className={cn(
-            "flex items-start gap-3 p-3 rounded-xl border backdrop-blur-sm",
-            style.actionBg
-          )}>
-            <Megaphone className={cn("w-5 h-5 shrink-0 mt-0.5", isLight ? "text-green-600" : "text-white/90")} />
-            <div>
-              <p className={cn("text-xs font-bold uppercase tracking-wider mb-0.5 opacity-70", isLight ? "text-green-800" : "text-white")}>
-                {language === "bn" ? "পরামর্শ" : "Action"}
+      {/* Chat Area */}
+      <ScrollArea className="flex-1 p-4 md:p-5 bg-slate-50/50">
+        <div className="space-y-4 md:space-y-6 pb-2">
+          {/* Welcome State */}
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-[350px] md:h-[450px] space-y-4 md:space-y-6 opacity-80">
+              <div className="h-16 w-16 md:h-20 md:w-20 bg-green-100 rounded-full flex items-center justify-center mb-2 animate-bounce [animation-duration:3s]">
+                <Bot className="h-8 w-8 md:h-10 md:w-10 text-green-600" />
+              </div>
+              <p className="text-sm md:text-base font-medium text-gray-600 text-center px-4 max-w-[80%]">
+                হ্যালো! আমি আপনাকে কৃষি বিষয়ক যেকোনো তথ্য দিয়ে সাহায্য করতে পারি।
               </p>
-              <p className={cn("text-sm font-semibold", isLight ? "text-gray-800" : "text-white")}>
-                {action}
-              </p>
+              <div className="flex flex-wrap justify-center gap-2 md:gap-3 px-2">
+                {['আজকের আবহাওয়া?', 'ধানের অবস্থা?', 'কবে কাটব?', 'সার প্রয়োগ'].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => handleUserQuery(q)}
+                    className="text-xs md:text-sm bg-white border border-green-200 px-3 py-1.5 md:px-4 md:py-2 rounded-full text-green-700 hover:bg-green-50 transition-colors shadow-sm hover:shadow-md"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
             </div>
+          )}
+
+          {/* Messages Loop */}
+          {messages.map((msg, idx) => (
+            <div
+              key={idx}
+              className={cn(
+                "flex w-full animate-in slide-in-from-bottom-2 fade-in duration-300",
+                msg.isUser ? "justify-end" : "justify-start"
+              )}
+            >
+              <div className={cn("flex max-w-[85%] md:max-w-[80%] gap-2 md:gap-3", msg.isUser ? "flex-row-reverse" : "flex-row")}>
+                {/* Avatar Icons */}
+                <div className={cn(
+                  "h-6 w-6 md:h-8 md:w-8 rounded-full flex items-center justify-center shrink-0 mt-1 shadow-sm",
+                  msg.isUser ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600"
+                )}>
+                  {msg.isUser ? <User className="h-3.5 w-3.5 md:h-4 md:w-4" /> : <Bot className="h-3.5 w-3.5 md:h-4 md:w-4" />}
+                </div>
+
+                {/* Message Bubble */}
+                <div
+                  className={cn(
+                    "rounded-2xl px-4 py-2.5 md:px-5 md:py-3 text-sm md:text-[15px] shadow-sm leading-relaxed",
+                    msg.isUser
+                      ? "bg-gradient-to-br from-blue-600 to-blue-500 text-white rounded-tr-none"
+                      : "bg-white border border-gray-100 text-gray-800 rounded-tl-none"
+                  )}
+                >
+                  {msg.text}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Thinking Indicator */}
+          {isThinking && (
+            <div className="flex w-full justify-start animate-in fade-in duration-300">
+              <div className="flex max-w-[85%] gap-2 md:gap-3">
+                <div className="h-6 w-6 md:h-8 md:w-8 bg-green-100 rounded-full flex items-center justify-center shrink-0 mt-1">
+                  <Bot className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-600" />
+                </div>
+                <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-none px-4 py-3 md:px-5 md:py-4 shadow-sm flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                  <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                  <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-bounce"></span>
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
+
+      {/* Input Area */}
+      <div className="p-3 md:p-4 bg-white border-t border-gray-100 shrink-0">
+        {error && (
+          <div className="mb-2 p-2 bg-red-50 text-red-600 text-xs md:text-sm rounded-lg text-center animate-pulse border border-red-100">
+            {error}
           </div>
         )}
+        
+        <form onSubmit={handleSubmit} className="flex items-center gap-2 md:gap-3 relative">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => isListening ? recognitionRef.current?.stop() : recognitionRef.current?.start()}
+            className={cn(
+              "shrink-0 h-11 w-11 md:h-12 md:w-12 rounded-full border-2 transition-all duration-300 shadow-sm", 
+              isListening 
+                ? "border-red-500 bg-red-50 text-red-600 animate-pulse scale-105" 
+                : "border-gray-200 hover:border-green-500 hover:text-green-600 hover:bg-green-50"
+            )}
+          >
+            <Mic className="h-5 w-5 md:h-6 md:w-6" />
+          </Button>
+          
+          <div className="flex-1 relative">
+            <Input
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="প্রশ্ন লিখুন..."
+              className="w-full rounded-full pl-5 pr-5 h-11 md:h-12 border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-500/20 bg-gray-50/50 focus:bg-white transition-all text-sm md:text-base"
+            />
+          </div>
+          
+          {inputText.trim() ? (
+            <Button 
+              type="submit" 
+              size="icon" 
+              className="shrink-0 h-11 w-11 md:h-12 md:w-12 rounded-full bg-green-600 hover:bg-green-700 shadow-md transition-all hover:scale-105"
+            >
+              <Send className="h-5 w-5 md:h-5 md:w-5" />
+            </Button>
+          ) : (
+             isSpeaking ? (
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="icon" 
+                onClick={() => speak('')} 
+                className="shrink-0 h-11 w-11 md:h-12 md:w-12 rounded-full border-red-200 hover:bg-red-50 hover:text-red-600 transition-colors"
+              >
+                <StopCircle className="h-6 w-6 text-red-500" />
+              </Button>
+             ) : null
+          )}
+        </form>
       </div>
-    </div>
+    </Card>
   );
-}
+};
 
-// Helper Icon for "Good" state
-function CheckCircleIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-      <path d="m9 11 3 3L22 4" />
-    </svg>
-  )
-}
+export default AIAssistant;

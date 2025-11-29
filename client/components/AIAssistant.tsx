@@ -148,7 +148,7 @@ const AIAssistant = () => {
     return (
       <Button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 md:bottom-10 md:right-10 h-14 w-14 md:h-16 md:w-16 rounded-full shadow-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:scale-110 hover:shadow-green-500/50 transition-all duration-300 z-50 animate-in zoom-in"
+        className="fixed bottom-24 right-6 md:bottom-10 md:right-10 h-14 w-14 md:h-16 md:w-16 rounded-full shadow-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:scale-110 hover:shadow-green-500/50 transition-all duration-300 z-[60] animate-in zoom-in"
       >
         <MessageSquare className="h-7 w-7 md:h-8 md:w-8 fill-current" />
       </Button>
@@ -158,9 +158,9 @@ const AIAssistant = () => {
   // Expanded Chat Interface
   return (
     <Card className={cn(
-      "fixed z-50 flex flex-col border-white/20 backdrop-blur-xl bg-white/95 shadow-2xl overflow-hidden ring-1 ring-black/5 rounded-2xl animate-in slide-in-from-bottom-10 fade-in duration-300",
-      // Mobile positioning & Sizing
-      "bottom-4 right-4 w-[calc(100vw-32px)] max-w-[380px] h-[550px]", 
+      "fixed z-[60] flex flex-col border-white/20 backdrop-blur-xl bg-white/95 shadow-2xl overflow-hidden ring-1 ring-black/5 rounded-2xl animate-in slide-in-from-bottom-10 fade-in duration-300",
+      // Mobile positioning & Sizing (above bottom tab navigation)
+      "bottom-24 right-4 w-[calc(100vw-32px)] max-w-[380px] h-[550px]", 
       // Tablet positioning & Sizing
       "md:bottom-8 md:right-8 md:w-[450px] md:h-[650px]",
       // Desktop positioning & Sizing (Large screens)
