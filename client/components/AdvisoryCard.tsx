@@ -49,32 +49,43 @@ export default function AdvisoryCard({ weatherData }: AdvisoryCardProps) {
   let message = "";
   let action = "";
 
-  // Use backend advisory if available
+  // Use backend advisory if available and it's a weather warning
+  let hasWeatherWarning = false;
   if (advisories.length > 0 && advisories[0].payload.message) {
     const advisory = advisories[0];
-    message = advisory.payload.message;
+    const advisoryMessage = advisory.payload.message;
     
-    // Extract actions if available
-    if (advisory.payload.actions && advisory.payload.actions.length > 0) {
-      action = advisory.payload.actions.join(", ");
-    }
+    // Check if this is a weather warning (not a broadcast message)
+    const isWeatherWarning = 
+      advisoryMessage.includes("বৃষ্টি") || advisoryMessage.toLowerCase().includes("rain") ||
+      advisoryMessage.includes("তাপমাত্রা") || advisoryMessage.toLowerCase().includes("heat") || advisoryMessage.toLowerCase().includes("temp") ||
+      advisoryMessage.includes("আর্দ্রতা") || advisoryMessage.toLowerCase().includes("humidity");
 
-    // Determine type and title from message content
-    // Check for Bangla keywords
-    if (message.includes("বৃষ্টি") || message.toLowerCase().includes("rain")) {
-      type = "rain";
-      title = language === "bn" ? "বৃষ্টি সতর্কতা" : "Rain Alert";
-    } else if (message.includes("তাপমাত্রা") || message.toLowerCase().includes("heat") || message.toLowerCase().includes("temp")) {
-      type = "heat";
-      title = language === "bn" ? "তাপপ্রবাহ" : "Heatwave";
-    } else if (message.includes("আর্দ্রতা") || message.toLowerCase().includes("humidity")) {
-      type = "humidity";
-      title = language === "bn" ? "আর্দ্রতা বেশি" : "High Humidity";
-    } else {
-      type = "good";
-      title = language === "bn" ? "পরামর্শ" : "Advisory";
+    if (isWeatherWarning) {
+      hasWeatherWarning = true;
+      message = advisoryMessage;
+      
+      // Extract actions if available
+      if (advisory.payload.actions && advisory.payload.actions.length > 0) {
+        action = advisory.payload.actions.join(", ");
+      }
+
+      // Determine type and title from message content
+      if (message.includes("বৃষ্টি") || message.toLowerCase().includes("rain")) {
+        type = "rain";
+        title = language === "bn" ? "বৃষ্টি সতর্কতা" : "Rain Alert";
+      } else if (message.includes("তাপমাত্রা") || message.toLowerCase().includes("heat") || message.toLowerCase().includes("temp")) {
+        type = "heat";
+        title = language === "bn" ? "তাপপ্রবাহ" : "Heatwave";
+      } else if (message.includes("আর্দ্রতা") || message.toLowerCase().includes("humidity")) {
+        type = "humidity";
+        title = language === "bn" ? "আর্দ্রতা বেশি" : "High Humidity";
+      }
     }
-  } else {
+  }
+  
+  // Fallback to client-side generation if no weather warning from backend
+  if (!hasWeatherWarning) {
     // Fallback to client-side generation for backward compatibility
     const rainChance = weatherData.rainChance ?? 0;
     const temp = weatherData.temperature ?? 30;
@@ -108,8 +119,8 @@ export default function AdvisoryCard({ weatherData }: AdvisoryCardProps) {
       type = "good";
       title = language === "bn" ? "আবহাওয়া ভালো" : "Good Weather";
       message = language === "bn" 
-        ? "এখন আবহাওয়া কৃষিকাজের অনুকূল।" 
-        : "Conditions are favorable.";
+        ? "কৃষিকাজের জন্য আবহাওয়া ভালো।" 
+        : "Weather is good for farming.";
       action = language === "bn" ? "আগাছা পরিষ্কার ও সার দিন।" : "Clear weeds & apply fertilizer.";
     }
   }
