@@ -40,6 +40,7 @@ import WeightInput from "@/components/WeightInput";
 import { storageTypes } from "@/data/mockData";
 import { useAdvisoryNotifications } from "@/hooks/useAdvisoryNotifications";
 import { useHarvestReminders } from "@/hooks/useHarvestReminders";
+import AIAssistant from "@/components/AIAssistant";
 
 export default function Dashboard() {
   const { t, language } = useLanguage();
@@ -580,6 +581,9 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+
+      {/* AI Assistant Floating Button */}
+      <AIAssistant />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
