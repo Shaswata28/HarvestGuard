@@ -102,6 +102,8 @@ export const strings = {
       
       // Fields
       crop_type: "ফসল",
+      select_crop: "ফসল নির্বাচন করুন",
+      search_crop: "ফসল খুঁজুন",
       rice: "ধান",
       weight: "পরিমাণ (কেজি)",
       est_weight: "সম্ভাব্য ফলন",
@@ -339,6 +341,8 @@ export const strings = {
       stage_harvested_desc: "Ready to store",
       
       crop_type: "Crop Type",
+      select_crop: "Select Crop Type",
+      search_crop: "Search crops",
       rice: "Paddy/Rice",
       weight: "Weight",
       est_weight: "Est. Yield",

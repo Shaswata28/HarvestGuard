@@ -1,4 +1,4 @@
-import { HealthScanResponse, Advisory, CropBatchResponse } from '@shared/api';
+import { HealthScanResponse, Advisory, CropBatchResponse, AdvisoryResponse } from '@shared/api';
 import { toast } from '@/hooks/use-toast';
 
 /**
@@ -250,6 +250,87 @@ class NotificationService {
       notifiedSet.add(advisoryKey);
       this.saveNotifiedAdvisories(notifiedSet);
     }, delay);
+  }
+
+  /**
+   * Notify about smart alert (from decision engine)
+   * Logs Critical alerts to console in SMS format
+   */
+  notifySmartAlert(advisory: AdvisoryResponse, farmerPhone: string, language: 'bn' | 'en'): void {
+    const prefs = this.getPreferences();
+    if (!prefs.weatherAdvisories) return;
+
+    // Track notified advisories to prevent duplicates
+    const notifiedSet = this.getNotifiedAdvisories();
+    const advisoryKey = `smart-${advisory._id}`;
+    
+    if (notifiedSet.has(advisoryKey)) {
+      return; // Already notified
+    }
+
+    const message = advisory.payload.message;
+    const actions = advisory.payload.actions || [];
+    
+    // Determine severity based on message content or actions
+    // Critical alerts contain urgent keywords in Bangla or English
+    const isCritical = message.includes('জরুরি') || 
+                      message.includes('Critical') || 
+                      message.includes('অবিলম্বে') ||
+                      message.includes('immediate');
+    
+    // Log Critical alerts to console in SMS format (Requirement 5.1)
+    if (isCritical) {
+      this.simulateSMS(farmerPhone, message);
+    }
+
+    // Show browser notification for all smart alerts
+    const severityEmoji = isCritical ? '🚨' : '⚠️';
+    const title = `${severityEmoji} ${language === 'bn' ? 'স্মার্ট সতর্কতা' : 'Smart Alert'}`;
+
+    this.showNotification(title, {
+      body: message,
+      tag: 'smart-alert',
+      requireInteraction: isCritical,
+      onClick: () => {
+        window.location.href = '/dashboard';
+      },
+    });
+
+    // Mark as notified
+    notifiedSet.add(advisoryKey);
+    this.saveNotifiedAdvisories(notifiedSet);
+  }
+
+  /**
+   * Simulate SMS notification in browser console
+   * Logs in format: SMS ALERT | Phone: xxx | Message: xxx | Time: xxx
+   */
+  private simulateSMS(phoneNumber: string, message: string): void {
+    const timestamp = new Date().toISOString();
+    const formattedTime = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    // Format: SMS ALERT | Phone: xxx | Message: xxx | Time: xxx
+    console.log(
+      `SMS ALERT | Phone: ${phoneNumber} | Message: ${message} | Time: ${formattedTime}`
+    );
+    
+    // Also log as a styled console message for better visibility
+    console.log(
+      '%c🚨 SMS ALERT 🚨',
+      'background: #dc2626; color: white; font-weight: bold; padding: 8px 16px; border-radius: 4px; font-size: 14px;'
+    );
+    console.log(`📱 Phone: ${phoneNumber}`);
+    console.log(`💬 Message: ${message}`);
+    console.log(`⏰ Time: ${formattedTime}`);
+    console.log(`🕐 Timestamp: ${timestamp}`);
+    console.log('─'.repeat(80));
   }
 
   /**

@@ -170,11 +170,21 @@ export const handleGenerateAdvisories: RequestHandler = async (req, res, next) =
     const farmersRepository = new (await import('../db/repositories/farmers.repository')).FarmersRepository(db);
     const cropBatchesRepository = new (await import('../db/repositories/cropBatches.repository')).CropBatchesRepository(db);
     const advisoryService = new AdvisoryService(advisoriesRepository);
+    
+    // Instantiate SmartAlertService
+    const { SmartAlertService } = await import('../services/smartAlert.service');
+    const smartAlertService = new SmartAlertService(
+      cropBatchesRepository,
+      farmersRepository,
+      advisoryService
+    );
+    
     const weatherAdvisoryService = new (await import('../services/weatherAdvisory.service')).WeatherAdvisoryService(
       advisoryService,
       advisoriesRepository,
       farmersRepository,
-      cropBatchesRepository
+      cropBatchesRepository,
+      smartAlertService
     );
 
     const { farmerId, division, district } = req.body;

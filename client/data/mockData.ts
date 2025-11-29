@@ -18,6 +18,16 @@ export interface DayForecast {
   condition: string;
 }
 
+export interface CropType {
+  id: string;              // Unique identifier (e.g., "rice", "wheat")
+  label_bn: string;        // Bengali name
+  label_en: string;        // English name
+  icon: string;            // Emoji or icon representation
+  category?: string;       // Optional: "grain", "vegetable", "pulse"
+  description_bn?: string; // Optional: Bengali description
+  description_en?: string; // Optional: English description
+}
+
 export interface CropBatch {
   id: string;
   cropType: string; // Changed from crop_type
@@ -70,6 +80,65 @@ export const mockCropBatches: CropBatch[] = [
   }
 ];
 
+export const cropTypes: CropType[] = [
+  {
+    id: "rice",
+    label_bn: "ধান",
+    label_en: "Rice/Paddy",
+    icon: "🌾",
+    category: "grain"
+  },
+  {
+    id: "wheat",
+    label_bn: "গম",
+    label_en: "Wheat",
+    icon: "🌾",
+    category: "grain"
+  },
+  {
+    id: "jute",
+    label_bn: "পাট",
+    label_en: "Jute",
+    icon: "🌿",
+    category: "fiber"
+  },
+  {
+    id: "potato",
+    label_bn: "আলু",
+    label_en: "Potato",
+    icon: "🥔",
+    category: "vegetable"
+  },
+  {
+    id: "tomato",
+    label_bn: "টমেটো",
+    label_en: "Tomato",
+    icon: "🍅",
+    category: "vegetable"
+  },
+  {
+    id: "lentil",
+    label_bn: "মসুর ডাল",
+    label_en: "Lentil",
+    icon: "🫘",
+    category: "pulse"
+  },
+  {
+    id: "mustard",
+    label_bn: "সরিষা",
+    label_en: "Mustard",
+    icon: "🌻",
+    category: "oilseed"
+  },
+  {
+    id: "corn",
+    label_bn: "ভুট্টা",
+    label_en: "Corn/Maize",
+    icon: "🌽",
+    category: "grain"
+  }
+];
+
 export const storageTypes = [
   {
     id: "jute_bag",
@@ -104,3 +173,35 @@ export const storageTypes = [
     description_en: "Temporary",
   },
 ];
+
+/**
+ * Get display information for a crop type
+ * @param cropTypeId - The crop type identifier (e.g., "rice", "wheat") or legacy value (e.g., "ধান")
+ * @param language - The language preference ('bn' for Bengali, 'en' for English)
+ * @returns Object containing the localized name and icon for the crop
+ */
+export function getCropDisplay(cropTypeId: string, language: 'bn' | 'en'): { name: string; icon: string } {
+  // Handle legacy Bengali crop names for backward compatibility
+  if (cropTypeId === "ধান") {
+    return { 
+      name: language === 'bn' ? "ধান" : "Rice/Paddy", 
+      icon: "🌾" 
+    };
+  }
+  
+  // Handle new crop type IDs
+  const crop = cropTypes.find(c => c.id === cropTypeId);
+  
+  // Fallback for unknown crop types
+  if (!crop) {
+    return { 
+      name: cropTypeId, 
+      icon: "🌱" 
+    };
+  }
+  
+  return {
+    name: language === 'bn' ? crop.label_bn : crop.label_en,
+    icon: crop.icon
+  };
+}

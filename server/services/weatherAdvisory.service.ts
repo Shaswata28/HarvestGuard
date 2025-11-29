@@ -14,6 +14,7 @@ import { AdvisoriesRepository } from '../db/repositories/advisories.repository';
 import { Advisory as WeatherAdvisory } from '@shared/api';
 import { Advisory } from '../db/schemas';
 import { logError } from '../utils/errors';
+import { SmartAlertService } from './smartAlert.service';
 
 /**
  * Weather Advisory Generation Service
@@ -23,7 +24,8 @@ export class WeatherAdvisoryService {
     private advisoryService: AdvisoryService,
     private advisoriesRepository: AdvisoriesRepository,
     private farmersRepository: FarmersRepository,
-    private cropBatchesRepository: CropBatchesRepository
+    private cropBatchesRepository: CropBatchesRepository,
+    private smartAlertService?: SmartAlertService
   ) {}
 
   /**
@@ -77,6 +79,28 @@ export class WeatherAdvisoryService {
       }
 
       console.log(`✓ Created ${createdAdvisories.length} weather advisories for farmer ${farmerId}`);
+
+      // Generate smart alerts alongside weather advisories
+      if (this.smartAlertService) {
+        try {
+          console.log(`Generating smart alerts for farmer ${farmerId}`);
+          
+          const smartAlerts = await this.smartAlertService.generateAlertsForFarmer(
+            farmerId,
+            weather
+          );
+
+          // Store smart alerts as advisories
+          const smartAlertCount = await this.smartAlertService.storeAlertsAsAdvisories(smartAlerts);
+          
+          console.log(`✓ Created ${smartAlertCount} smart alert advisories for farmer ${farmerId}`);
+        } catch (error) {
+          // Log error but don't fail the entire operation
+          logError(error as Error, 'WeatherAdvisoryService.generateForFarmer - Smart Alerts');
+          console.warn('Smart alert generation failed, continuing with weather advisories');
+        }
+      }
+
       return createdAdvisories;
     } catch (error) {
       logError(error as Error, 'WeatherAdvisoryService.generateForFarmer');

@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import WeightInput from "@/components/WeightInput";
-import { storageTypes } from "@/data/mockData";
+import { storageTypes, getCropDisplay } from "@/data/mockData";
 import { generateAdvisories } from "@/utils/advisoryGenerator";
 import { useAdvisoryNotifications } from "@/hooks/useAdvisoryNotifications";
 import { useHarvestReminders } from "@/hooks/useHarvestReminders";
@@ -66,6 +66,8 @@ export default function Dashboard() {
     advisories,
     language: language as 'bn' | 'en',
     enabled: isAuthenticated && !!farmerId,
+    farmerId: farmerId || undefined,
+    farmerPhone: farmerData?.phone || undefined,
   });
 
   // Schedule harvest reminders
@@ -699,7 +701,9 @@ function CropCard({ crop, language, t, onEdit, onDelete, onMarkHarvested }: {
 }) {
   const weight = crop.stage === "growing" ? crop.estimatedWeight : crop.finalWeight || 0;
   const displayWeight = language === "bn" ? toBanglaDigits(weight) : weight;
-  const type = crop.cropType || (language === "bn" ? "ধান" : "Rice");
+  const cropDisplay = getCropDisplay(crop.cropType || "rice", language as 'bn' | 'en');
+  const type = cropDisplay.name;
+  const cropIcon = cropDisplay.icon;
   
   const dateStr = crop.stage === "growing" ? crop.expectedHarvestDate : crop.actualHarvestDate;
   const dateLabel = crop.stage === "growing" ? (language === "bn" ? "সম্ভাব্য কাটা:" : "Expected:") : (language === "bn" ? "কাটা হয়েছে:" : "Harvested:");
@@ -732,7 +736,7 @@ function CropCard({ crop, language, t, onEdit, onDelete, onMarkHarvested }: {
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="font-bold text-2xl text-foreground flex items-center gap-2 mb-1">
-            {type}
+            <span className="text-2xl">{cropIcon}</span> {type}
           </h3>
           <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${status.bg} ${status.text} text-sm font-bold`}>
             {status.label}
